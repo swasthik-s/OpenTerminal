@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { calculateRiskStatus } from "./engine.js";
 import { parsePropRule } from "../rules/schema.js";
-import ftmo from "../rules/ftmo-2step-100k.json";
+import ftmo2Step from "../rules/ftmo-2step-100k.json";
+import ftmo1Step from "../rules/ftmo-1step-100k.json";
 
 const rule = parsePropRule({
-  ...ftmo,
+  ...ftmo2Step,
   dailyResetTimezone: "Europe/Prague",
   lastVerified: "2026-10-29",
 });
-
+const oneStepRule = parsePropRule(ftmo1Step);
 const buffers = { softStopAtPct: 60, hardStopAtPct: 80, overallGuardAtPct: 80 };
 const baseInput = {
   startingBalance: 100_000,
@@ -23,7 +24,7 @@ const baseInput = {
 };
 
 describe("calculateRiskStatus", () => {
-  it("calculates provisional daily loss and headroom from supplied P/L values", () => {
+  it("calculates static-program daily loss and headroom from supplied P/L", () => {
     const result = calculateRiskStatus(rule, {
       ...baseInput,
       dailyClosedPnl: -2_000,
@@ -38,11 +39,10 @@ describe("calculateRiskStatus", () => {
     expect(result.eligibleForLiveUse).toBe(false);
   });
 
-  it("flags hard stop and overall drawdown guard with conservative buffers", () => {
+  it("flags hard stop and overall drawdown guard", () => {
     const result = calculateRiskStatus(rule, {
       ...baseInput,
       dailyClosedPnl: -4_000,
-      balance: 92_000,
       equity: 91_000,
     }, buffers);
     expect(result.dailyHardStop).toBe(true);
@@ -50,28 +50,43 @@ describe("calculateRiskStatus", () => {
   });
 
   it("calculates phase target progress and phase-specific minimum days", () => {
-    const verification = calculateRiskStatus(rule, {
+    const result = calculateRiskStatus(rule, {
       ...baseInput,
       phaseIndex: 1,
       phaseClosedProfit: 2_500,
       tradingDays: 2,
     }, buffers);
-    expect(verification.phaseProfitTarget).toBe(5_000);
-    expect(verification.phaseProfitProgressPct).toBe(50);
-    expect(verification.minimumTradingDays).toBe(4);
+    expect(result.phaseProfitTarget).toBe(5_000);
+    expect(result.phaseProfitProgressPct).toBe(50);
+    expect(result.minimumTradingDays).toBe(4);
   });
 
-  it("rejects unverified trailing-drawdown calculation", () => {
-    const trailingRule = parsePropRule({
-      ...rule,
-      id: "test-trailing",
-      drawdownType: "trailing",
-    });
-    expect(() => calculateRiskStatus(trailingRule, baseInput, buffers))
-      .toThrow(/high-water-mark/);
+  it("requires broker-sourced reset and EOD high-water balances for trailing rules", () => {
+    expect(() => calculateRiskStatus(oneStepRule, baseInput, buffers))
+      .toThrow(/dailyResetBalance and highestEndOfDayBalance/);
   });
 
-  it("rejects bad buffers and out-of-range phase indices", () => {
+  it("calculates FTMO 1-Step daily and EOD trailing equity floors", () => {
+    const result = calculateRiskStatus(oneStepRule, {
+      ...baseInput,
+      balance: 103_000,
+      equity: 96_500,
+      dailyResetBalance: 102_000,
+      highestEndOfDayBalance: 104_000,
+      phaseClosedProfit: 3_000,
+    }, buffers);
+    expect(result.dailyLossLimit).toBe(3_000);
+    expect(result.dailyLossLimitEquityFloor).toBe(99_000);
+    expect(result.dailyLossUsed).toBe(5_500);
+    expect(result.totalLossLimit).toBe(10_000);
+    expect(result.totalLossEquityFloor).toBe(94_000);
+    expect(result.totalLossUsed).toBe(7_500);
+    expect(result.phaseProfitTarget).toBe(10_000);
+    expect(result.phaseProfitProgressPct).toBe(30);
+    expect(result.eligibleForLiveUse).toBe(false);
+  });
+
+  it("rejects invalid buffers and phase indices", () => {
     expect(() => calculateRiskStatus(rule, baseInput, {
       softStopAtPct: 80, hardStopAtPct: 60, overallGuardAtPct: 80,
     })).toThrow(/below hard-stop/);
@@ -83,6 +98,6 @@ describe("calculateRiskStatus", () => {
   });
 
   it("rejects rule files that still contain VERIFY placeholders", () => {
-    expect(() => parsePropRule(ftmo)).toThrow();
+    expect(() => parsePropRule(ftmo2Step)).toThrow();
   });
 });
