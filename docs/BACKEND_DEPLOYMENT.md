@@ -1,6 +1,6 @@
 # Deploy the OpenTerminal backend
 
-This repository includes a Render Blueprint at the root `render.yaml`. It builds the API from `server/Dockerfile`, checks `/api/status) after deployment, and mounts a persistent disk at `/app/data` for SQLite.
+This repository includes a Render Blueprint at the root `render.yaml`. It builds the API from `server/Dockerfile`, checks `/api/status` after deployment, and mounts a persistent disk at `/app/data` for SQLite.
 
 ## Deploy with Render Blueprint
 
