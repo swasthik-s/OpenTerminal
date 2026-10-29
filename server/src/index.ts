@@ -7,6 +7,7 @@ import { rulesRouter } from "./routes/rules.js";
 import { allStats } from "./providers/registry.js";
 import { requireApiKey } from "./auth.js";
 import { rateLimit } from "./rateLimit.js";
+import { integrationsRouter } from "./routes/integrations.js";
 
 const app = express();
 
@@ -29,6 +30,8 @@ if (process.env.TRUST_PROXY === "1") {
 const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
 app.use(cors({ origin: webOrigin }));
 app.use(express.json({ limit: "1mb" }));
+
+app.use("/api/integrations", requireApiKey, rateLimit({ windowMs: 60_000, max: 30 }), integrationsRouter);
 
 // No API key here by design (market.ts routes proxy free, keyless public data),
 // but still bounded per-IP to protect upstream public-data providers.
