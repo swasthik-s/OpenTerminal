@@ -251,3 +251,10 @@ kbd { border: 1px solid #354252; border-radius: 4px; background: #161e29; color:
   .sidebar-footer { padding: 8px 4px; }
   .reset-layout { justify-content: center; padding: 8px 0; }
 }
+
+
+/* Bring legacy utility-sized labels up to a readable terminal scale. */
+[class*="text-[9px]"] { font-size: 10px !important; }
+[class*="text-[10px]"] { font-size: 11px !important; }
+[class*="text-[11px]"] { font-size: 12px !important; }
+[class*="text-[12px]"] { font-size: 13px !important; }
