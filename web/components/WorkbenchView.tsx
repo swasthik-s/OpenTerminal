@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 type View = "settings" | "strategy" | "backtest" | "polymarket";
+type PolyMarket = { question?: string; slug?: string; volume24hr?: number | string; volume?: number | string; liquidity?: number | string; outcomePrices?: string; active?: boolean; closed?: boolean; endDate?: string };
 
 const BROKERS = [
   { name: "Alpaca", detail: "Stocks, ETFs & paper trading", method: "API key / OAuth" },
@@ -28,7 +30,7 @@ export default function WorkbenchView({ view }: { view: View }) {
   const [dateTo, setDateTo] = useState("2026-10-29");
   const [engineNotice, setEngineNotice] = useState("");
   const [polyNotice, setPolyNotice] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(false);\n  const [polySearch, setPolySearch] = useState("");\n  const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: async () => { const response = await fetch("https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume24hr&ascending=false&limit=50"); if (!response.ok) throw new Error("Polymarket API returned HTTP " + response.status); return response.json() as Promise<PolyMarket[]>; }, enabled: view === "polymarket", refetchInterval: 60_000, staleTime: 30_000 });
 
   const spec = useMemo(() => [
     `Strategy: ${strategyName || "Untitled strategy"}`,
@@ -84,11 +86,16 @@ export default function WorkbenchView({ view }: { view: View }) {
     </section>
   );
 
+  const polyMarkets = (polymarketQuery.data ?? []).filter((item) => (item.question ?? "").toLowerCase().includes(polySearch.toLowerCase()));
+  const money = (value?: string | number) => { const n = Number(value ?? 0); return Number.isFinite(n) ? n >= 1_000_000 ? "$" + (n / 1_000_000).toFixed(2) + "M" : n >= 1_000 ? "$" + (n / 1_000).toFixed(1) + "K" : "$" + n.toFixed(0) : "—"; };
+  const probability = (value?: string) => { try { const n = Number(JSON.parse(value ?? "[]")[0]); return Number.isFinite(n) ? (n * 100).toFixed(1) + "%" : "—"; } catch { return "—"; } };
   return (
     <section className="workbench-page">
-      <div className="workbench-intro"><div className="eyebrow">ALTERNATIVE DATA / PREDICTION MARKETS</div><h2>Polymarket</h2><p>Explore event probabilities alongside traditional market research.</p></div>
-      <div className="poly-toolbar"><div><span className="status-dot idle-bg"/> PUBLIC MARKET DATA NOT CONNECTED</div><button className="workbench-button" onClick={()=>setPolyNotice("Polymarket market-data adapter is not configured. This page does not display live markets or submit orders.")}>Check connection</button></div>
-      <div className="poly-empty"><div className="poly-mark">P</div><h3>Prediction market feed</h3><p>Connect a public market-data adapter to show event markets, implied probabilities, liquidity, volume and price history. Wallets and order execution should be a separate, explicit setup.</p><div className="poly-features"><div><span>01</span><strong>Event discovery</strong><p>Search by topic, close date and liquidity.</p></div><div><span>02</span><strong>Probability monitor</strong><p>Track probability moves and unusual volume.</p></div><div><span>03</span><strong>Risk controls</strong><p>Keep market-data access separate from wallet permissions.</p></div></div>{polyNotice && <div className="notice-line"><span>STATUS</span>{polyNotice}</div>}</div>
+      <div className="workbench-intro"><div className="eyebrow">ALTERNATIVE DATA / PREDICTION MARKETS</div><h2>Polymarket</h2><p>Public market data for event probabilities, liquidity and activity. Trading and wallet access are not enabled here.</p></div>
+      <div className="poly-toolbar"><div><span className={`status-dot ${polymarketQuery.isSuccess ? "up-bg" : "idle-bg"}`}/> {polymarketQuery.isSuccess ? "PUBLIC MARKET DATA CONNECTED · REFRESHES EVERY 60S" : polymarketQuery.isLoading ? "CONNECTING TO PUBLIC MARKET DATA…" : "PUBLIC MARKET DATA UNAVAILABLE"}</div><input aria-label="Search prediction markets" placeholder="Filter markets…" value={polySearch} onChange={e=>setPolySearch(e.target.value)} /><button className="workbench-button" onClick={()=>polymarketQuery.refetch()}>Refresh</button></div>
+      {polymarketQuery.error && <div className="notice-line"><span>FEED ERROR</span>{(polymarketQuery.error as Error).message}. The API may be unreachable from this browser or deployment.</div>}
+      {polymarketQuery.isLoading ? <div className="engine-empty"><div className="engine-icon">↻</div><h3>Loading public markets</h3><p>Fetching active markets from Polymarket's public Gamma API.</p></div> : polyMarkets.length ? <div className="poly-table-wrap"><table className="data-table poly-table"><thead><tr><th>EVENT / MARKET</th><th>TOP OUTCOME</th><th>24H VOLUME</th><th>LIQUIDITY</th><th>END DATE</th><th>LINK</th></tr></thead><tbody>{polyMarkets.map((item,index)=><tr key={item.slug ?? item.question ?? index}><td className="poly-question">{item.question ?? "Untitled market"}</td><td className="amber">{probability(item.outcomePrices)}</td><td>{money(item.volume24hr ?? item.volume)}</td><td>{money(item.liquidity)}</td><td>{item.endDate ? new Date(item.endDate).toLocaleDateString() : "—"}</td><td>{item.slug ? <a href={`https://polymarket.com/event/${encodeURIComponent(item.slug)}`} target="_blank" rel="noreferrer">OPEN ↗</a> : "—"}</td></tr>)}</tbody></table></div> : <div className="engine-empty"><div className="engine-icon">P</div><h3>{polySearch ? "No matching markets" : "No market data returned"}</h3><p>{polySearch ? "Try another search phrase." : "The public market API returned no active markets."}</p></div>}
+      <div className="poly-disclaimer">PUBLIC DATA ONLY · No wallet connection, order placement, or investment recommendation. Market data can be delayed or unavailable.</div>
     </section>
   );
 }
