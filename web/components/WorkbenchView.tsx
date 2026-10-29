@@ -29,7 +29,6 @@ export default function WorkbenchView({ view }: { view: View }) {
   const [dateFrom, setDateFrom] = useState("2025-01-01");
   const [dateTo, setDateTo] = useState("2026-10-29");
   const [engineNotice, setEngineNotice] = useState("");
-  const [polyNotice, setPolyNotice] = useState("");
   const [saved, setSaved] = useState(false);\n  const [polySearch, setPolySearch] = useState("");\n  const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: async () => { const response = await fetch("https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume24hr&ascending=false&limit=50"); if (!response.ok) throw new Error("Polymarket API returned HTTP " + response.status); return response.json() as Promise<PolyMarket[]>; }, enabled: view === "polymarket", refetchInterval: 60_000, staleTime: 30_000 });
 
   const spec = useMemo(() => [
