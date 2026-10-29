@@ -8,7 +8,7 @@ import AppIcon from "./AppIcon";
 
 type View = "settings" | "strategy" | "backtest" | "polymarket";
 type Integration = { id: string; label: string; configured: boolean; mode: string; detail: string };
-type RssFeed = { id:number; url:string; label:string; enabled:number; createdAt:string };
+type RssFeed = { id:number; url:string; label:string; enabled:number; createdAt:string };\ntype ProviderStatus = { name:string; ok:number; failed:number; lastLatencyMs:number|null; lastError:string|null; lastSuccess:string|null };
 type PolyMarket = { question?: string; slug?: string; volume24hr?: number | string; volume_24hr?: number | string; volume?: number | string; liquidity?: number | string; outcomePrices?: string; outcome_prices?: string; active?: boolean; closed?: boolean; endDate?: string; end_date?: string };
 
 const BROKERS = [
@@ -54,6 +54,7 @@ export default function WorkbenchView({ view }: { view: View }) {
   const setStartView = usePreferences((s) => s.setStartView);
   const resetPreferences = usePreferences((s) => s.resetPreferences);
   const integrationsQuery = useQuery({ queryKey: ["integration-status"], queryFn: () => apiGet<{checkedAt:string; integrations:Integration[]}>("/api/integrations/status"), enabled: view === "settings", refetchInterval: refreshSeconds * 1000 });
+  const marketStatusQuery = useQuery({ queryKey: ["status"], queryFn: () => apiGet<{providers:ProviderStatus[]}>("/api/status"), enabled: view === "settings", refetchInterval: refreshSeconds * 1000 });
   const rssQuery = useQuery({ queryKey: ["rss-feeds"], queryFn: () => apiGet<RssFeed[]>("/api/integrations/rss-feeds"), enabled: view === "settings" });
   const addRssFeed = async (event: FormEvent) => { event.preventDefault(); if (!rssUrl.trim()) return; setRssBusy(true); setRssNotice(""); try { await apiPost("/api/integrations/rss-feeds", { url: rssUrl.trim(), label: rssLabel.trim() || undefined }); setRssUrl(""); setRssLabel(""); setRssNotice("Feed validated and saved. It will appear in news results."); await Promise.all([rssQuery.refetch(), integrationsQuery.refetch()]); } catch (error) { setRssNotice((error as Error).message); } finally { setRssBusy(false); } };
   const removeRssFeed = async (id:number) => { try { await apiDelete("/api/integrations/rss-feeds/" + id); await Promise.all([rssQuery.refetch(), integrationsQuery.refetch()]); setRssNotice("RSS feed removed."); } catch (error) { setRssNotice((error as Error).message); } };
@@ -94,6 +95,12 @@ export default function WorkbenchView({ view }: { view: View }) {
           <div className="integration-list">{integrations.map((item)=> <article className="integration-card" key={item.id}><div className="integration-icon"><AppIcon name={item.id==="ai"?"brain":item.id==="rss"?"rss":item.id==="polymarket"?"globe":item.id==="alpaca"?"activity":"plug"} size={19}/></div><div className="integration-copy"><strong>{item.label}</strong><p>{item.detail}</p></div><span className={"state-badge " + (item.configured ? "state-warn" : "state-off")}>{item.configured ? (item.id==="polymarket" ? "PUBLIC DATA" : "CONFIGURED") : "NOT CONFIGURED"}</span>{item.id==="alpaca" && item.configured && <button className="workbench-button" disabled={alpacaTest.loading} onClick={runAlpacaTest}>{alpacaTest.loading?"Testing…":"Test account"}</button>}{item.id==="ai" && item.configured && <button className="workbench-button" disabled={aiTest.loading} onClick={runAiTest}>{aiTest.loading?"Testing…":"Test API"}</button>}</article>)}</div>
           {aiTest.message && <div className="notice-line"><span>{aiTest.loading?"TESTING":aiTest.ok?"AI OK":"AI FAILED"}</span>{aiTest.message}</div>}{alpacaTest.message && <div className="notice-line"><span>{alpacaTest.loading?"TESTING":alpacaTest.ok?"CONNECTED":"FAILED"}</span>{alpacaTest.message}</div>}
           <div className="security-note"><span className="security-icon"><AppIcon name="shield" size={22}/></span><div><strong>Secrets stay on the API server</strong><p>Set provider credentials as environment variables in the server deployment. Never paste private broker keys into a frontend form. Use read-only keys by default; live order execution must be separately permissioned and tested.</p></div></div>
+        </div>
+        <div className="settings-section">
+          <div className="section-heading"><div><h3><AppIcon name="activity" size={16}/> Market data providers</h3><p>Runtime health is based on recent requests handled by this API process.</p></div><button className="workbench-button" onClick={()=>marketStatusQuery.refetch()}><AppIcon name="refresh" size={14}/> Refresh</button></div>
+          {marketStatusQuery.error && <div className="notice-line"><span>API ERROR</span>{(marketStatusQuery.error as Error).message}</div>}
+          <div className="provider-health-grid">{(marketStatusQuery.data?.providers ?? []).map(provider=><article className="provider-health-card" key={provider.name}><div><strong>{provider.name}</strong><span className={"provider-health-dot " + (provider.ok>0?"healthy":"idle")}/></div><p>{provider.ok} successes · {provider.failed} failures</p><small>{provider.lastLatencyMs===null?"No recent request":provider.lastLatencyMs+" ms last response"}{provider.lastSuccess ? " · "+new Date(provider.lastSuccess).toLocaleTimeString() : ""}</small>{provider.lastError && <details><summary>Last error</summary><p>{provider.lastError}</p></details>}</article>)}</div>
+          {(!marketStatusQuery.data?.providers?.length) && <div className="integration-loading">No provider activity recorded in this API process yet. Open a market widget, then refresh this panel.</div>}
         </div>
         <div className="settings-section">
           <div className="section-heading"><div><h3><AppIcon name="rss" size={16}/> RSS / Atom feeds</h3><p>Add trusted HTTPS feeds; the API validates the URL and parses the feed before saving it.</p></div><span className="state-badge state-off">{rssQuery.data?.length ?? 0} SAVED</span></div>
