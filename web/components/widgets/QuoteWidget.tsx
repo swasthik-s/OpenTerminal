@@ -5,14 +5,17 @@ import { apiGet, fmt, fmtBig, pctClass, type Quote } from "../../lib/api";
 import { useWidgetSymbol, type WidgetInstance } from "../../store/terminal";
 import Flash from "../Flash";
 
+import { usePreferences } from "../../store/preferences";
+
 type ShortVolume = { date: string; shortVolume: number; shortExemptVolume: number; totalVolume: number; shortVolumePercent: number };
 
-export default function QuoteWidget({ widget }: { widget: WidgetInstance }) {
+export default function QuoteWidget({
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds); widget }: { widget: WidgetInstance }) {
   const symbol = useWidgetSymbol(widget);
   const { data, error } = useQuery({
     queryKey: ["quote", symbol],
     queryFn: async () => (await apiGet<Quote[]>(`/api/quotes?symbols=${encodeURIComponent(symbol)}`))[0],
-    refetchInterval: 1_000,
+    refetchInterval: refreshSeconds * 1000,
   });
   // FINRA's Reg SHO file only updates once a day (next-morning), so no point polling it fast.
   const { data: shortVol } = useQuery({
