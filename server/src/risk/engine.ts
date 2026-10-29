@@ -4,17 +4,11 @@ export type RiskInput = {
   startingBalance: number;
   balance: number;
   equity: number;
-  /** Realized P/L since the account's firm-defined daily reset, net of costs. */
   dailyClosedPnl: number;
-  /** Open-position P/L including commission and swap when provided by the broker. */
   floatingPnl: number;
-  /** Current day's costs not already reflected in dailyClosedPnl/floatingPnl. */
   additionalCosts?: number;
-  /** Balance captured at the firm's daily reset (required for accurate daily limit). */
   dailyResetBalance?: number;
-  /** Highest completed end-of-day balance since account start (required for trailing loss). */
   highestEndOfDayBalance?: number;
-  /** Current phase's closed profit, calculated using the official accounting rule. */
   phaseClosedProfit: number;
   phaseIndex?: number;
   tradingDays: number;
@@ -55,11 +49,9 @@ function assertFiniteNonNegative(name: string, value: number): void {
 }
 
 /**
- * Monitoring-only risk calculation. It never enables trading or executes orders.
- * Trailing rules use a daily-reset balance and a highest completed end-of-day
- * balance. These must come from a reliable broker/EA feed; never estimate them
- * from the current balance. This is still not a complete substitute for firm-side
- * accounting or an EA-side Guardian.
+ * Monitoring-only calculation. It never enables trading or executes orders.
+ * Trailing rules require trusted daily-reset and highest completed EOD balances.
+ * This is not a substitute for firm-side accounting or an EA-side Guardian.
  */
 export function calculateRiskStatus(
   rule: PropRule,
@@ -87,9 +79,7 @@ export function calculateRiskStatus(
   assertFiniteNonNegative("equity", input.equity);
   assertFiniteNonNegative("tradingDays", input.tradingDays);
   assertFiniteNonNegative("phaseIndex", input.phaseIndex ?? 0);
-  if (input.phaseClosedProfit < -input.startingBalance) {
-    throw new RangeError("phaseClosedProfit is outside supported bounds");
-  }
+  if (input.phaseClosedProfit < -input.startingBalance) throw new RangeError("phaseClosedProfit is outside supported bounds");
   const phaseIndex = input.phaseIndex ?? 0;
   const phase = rule.phases[phaseIndex];
   if (!phase) throw new RangeError("phaseIndex does not exist in the rule file");
@@ -106,21 +96,18 @@ export function calculateRiskStatus(
   }
 
   for (const [name, value] of Object.entries(buffers)) {
-    if (!(value > 0 && value < 100)) {
-      throw new RangeError(`${name} must be greater than 0 and less than 100`);
-    }
+    if (!(value > 0 && value < 100)) throw new RangeError(`${name} must be greater than 0 and less than 100`);
   }
   if (!(buffers.softStopAtPct < buffers.hardStopAtPct)) {
     throw new RangeError("soft-stop threshold must be below hard-stop threshold");
   }
 
   const dailyLossLimit = rule.accountSize * rule.maxDailyLossPct / 100;
-  const dailyLossLimitEquityFloor = rule.drawdownType === "trailing"
-    ? input.dailyResetBalance! - dailyLossLimit
-    : input.startingBalance - dailyLossLimit;
+  const dailyReference = rule.drawdownType === "trailing" ? input.dailyResetBalance! : input.startingBalance;
+  const dailyLossLimitEquityFloor = dailyReference - dailyLossLimit;
   const dailyNetPnl = input.dailyClosedPnl + input.floatingPnl - (input.additionalCosts ?? 0);
   const dailyLossUsed = rule.drawdownType === "trailing"
-    ? Math.max(0, dailyLossLimitEquityFloor - input.equity)
+    ? Math.max(0, dailyReference - input.equity)
     : Math.max(0, -dailyNetPnl);
   const dailyLossUsedPct = dailyLossLimit > 0 ? dailyLossUsed / dailyLossLimit * 100 : 100;
   const dailyHeadroom = Math.max(0, dailyLossLimit - dailyLossUsed);
@@ -130,7 +117,7 @@ export function calculateRiskStatus(
     ? Math.max(input.startingBalance, input.highestEndOfDayBalance!)
     : input.startingBalance;
   const totalLossEquityFloor = totalLossReference - totalLossLimit;
-  const totalLossUsed = Math.max(0, totalLossEquityFloor - input.equity);
+  const totalLossUsed = Math.max(0, totalLossReference - input.equity);
   const totalLossUsedPct = totalLossLimit > 0 ? totalLossUsed / totalLossLimit * 100 : 100;
   const totalHeadroom = Math.max(0, totalLossLimit - totalLossUsed);
 
@@ -139,9 +126,7 @@ export function calculateRiskStatus(
     ? Math.max(0, input.phaseClosedProfit) / phaseProfitTarget * 100
     : 100;
 
-  const reasons: string[] = [
-    "Monitoring only: live trading is disabled until MT5 ingestion, firm-specific accounting, and the EA Guardian are verified.",
-  ];
+  const reasons = ["Monitoring only: live trading is disabled until MT5 ingestion, firm-specific accounting, and the EA Guardian are verified."];
   const dailySoftStop = dailyLossUsedPct >= buffers.softStopAtPct;
   const dailyHardStop = dailyLossUsedPct >= buffers.hardStopAtPct;
   const overallDrawdownGuard = totalLossUsedPct >= buffers.overallGuardAtPct;
