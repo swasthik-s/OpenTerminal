@@ -31,7 +31,7 @@ export default function WorkbenchView({ view }: { view: View }) {
   const [engineNotice, setEngineNotice] = useState("");
   const [saved, setSaved] = useState(false);
   const [polySearch, setPolySearch] = useState("");
-  const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: async () => { const response = await fetch("https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume24hr&ascending=false&limit=50"); if (!response.ok) throw new Error("Polymarket API returned HTTP " + response.status); return response.json() as Promise<PolyMarket[]>; }, enabled: view === "polymarket", refetchInterval: 60_000, staleTime: 30_000 });
+  const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: async () => { const response = await fetch("https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume_24hr&ascending=false&limit=50"); if (!response.ok) throw new Error("Polymarket API returned HTTP " + response.status); return response.json() as Promise<PolyMarket[]>; }, enabled: view === "polymarket", refetchInterval: 60_000, staleTime: 30_000 });
 
   const spec = useMemo(() => [
     `Strategy: ${strategyName || "Untitled strategy"}`,
