@@ -6,6 +6,8 @@ import { apiGet, fmt, fmtBig, pctClass } from "../../lib/api";
 import { useTerminal } from "../../store/terminal";
 import Flash from "../Flash";
 
+import { usePreferences } from "../../store/preferences";
+
 type Row = {
   symbol: string; name: string; price: number | null;
   changePercent: number | null; volume: number | null; marketCap: number | null;
@@ -13,6 +15,7 @@ type Row = {
 };
 
 export default function ScreenerWidget() {
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
   const setActiveSymbol = useTerminal((s) => s.setActiveSymbol);
   const [market, setMarket] = useState<"us" | "eu">("us");
   const [sector, setSector] = useState("");
@@ -40,7 +43,7 @@ export default function ScreenerWidget() {
   const { data = [], isLoading, error } = useQuery({
     queryKey: ["screener", params.toString()],
     queryFn: () => apiGet<Row[]>(`/api/screener?${params}`),
-    refetchInterval: 20_000,
+    refetchInterval: refreshSeconds * 1000,
   });
 
   const th = (key: string, label: string) => (
