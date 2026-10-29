@@ -7,6 +7,7 @@ import { usePreferences } from "../store/preferences";
 import AppIcon from "./AppIcon";
 
 type View = "settings" | "strategy" | "backtest" | "polymarket";
+type Integration = { id: string; label: string; configured: boolean; mode: string; detail: string };
 type PolyMarket = { question?: string; slug?: string; volume24hr?: number | string; volume_24hr?: number | string; volume?: number | string; liquidity?: number | string; outcomePrices?: string; outcome_prices?: string; active?: boolean; closed?: boolean; endDate?: string; end_date?: string };
 
 const BROKERS = [
@@ -48,8 +49,6 @@ export default function WorkbenchView({ view }: { view: View }) {
   const integrationsQuery = useQuery({ queryKey: ["integration-status"], queryFn: () => apiGet<{checkedAt:string; integrations:Integration[]}>("/api/integrations/status"), enabled: view === "settings", refetchInterval: 60_000 });
   const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: () => apiGet<{fetchedAt:string; count:number; markets:PolyMarket[]}>("/api/polymarket/markets"), enabled: view === "polymarket", refetchInterval: 60_000, staleTime: 30_000 });
   const runAlpacaTest = async () => { setAlpacaTest({loading:true,message:"Checking server-side Alpaca credentials…"}); try { const result = await apiPost<{ok:boolean;paper:boolean;account?:{id?:string;status?:string;currency?:string;tradingBlocked?:boolean};error?:string}>("/api/integrations/alpaca/test",{}); setAlpacaTest({loading:false,ok:result.ok,message:result.ok ? "Account handshake succeeded · " + (result.paper ? "PAPER" : "LIVE") + " · " + (result.account?.status ?? "status unknown") + " · " + (result.account?.currency ?? "currency unknown") : "Connection failed"}); } catch (error) { setAlpacaTest({loading:false,ok:false,message:(error as Error).message}); } };
-  const [polySearch, setPolySearch] = useState("");
-  const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: async () => { const response = await fetch("https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume_24hr&ascending=false&limit=50"); if (!response.ok) throw new Error("Polymarket API returned HTTP " + response.status); return response.json() as Promise<PolyMarket[]>; }, enabled: view === "polymarket", refetchInterval: 60_000, staleTime: 30_000 });
 
   const spec = useMemo(() => [
     `Strategy: ${strategyName || "Untitled strategy"}`,
