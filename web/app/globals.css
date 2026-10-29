@@ -684,3 +684,70 @@ a.news-headline:hover { color:#ffc16b; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+
+/* Readability pass: increase type scale, breathing room and contrast. */
+html, body { font-size: 15px !important; line-height: 1.55; letter-spacing: 0; }
+.topbar { font-size: 13px; gap: 16px; }
+.brand-name { font-size: 14px; }
+.market-status, .market-clock-time, .search-copy { font-size: 12px; }
+.feed-status, .ai-status { font-size: 11px; }
+.terminal-sidebar { width: 232px; min-width: 232px; max-width: 232px; }
+.sidebar-heading { font-size: 11px; }
+.sidebar-group { font-size: 10px; }
+.sidebar-item { min-height: 39px; height: 39px; font-size: 14px; gap: 11px; padding: 8px 10px; }
+.sidebar-icon { width: 20px; font-size: 17px; }
+.sidebar-shortcut { font-size: 10px; }
+.view-heading { padding: 20px 24px 18px; min-height: 98px; }
+.view-heading h1 { font-size: 24px; letter-spacing: -.035em; }
+.view-heading p { font-size: 13px; line-height: 1.6; color: #aaa; }
+.view-eyebrow { font-size: 11px; margin-bottom: 7px; }
+.single-view { font-size: 14px; }
+.panel-title { min-height: 38px; padding: 8px 12px; font-size: 12px; }
+table.data-table { font-size: 14px; }
+table.data-table th { font-size: 12px; padding: 10px 12px; }
+table.data-table td { padding: 10px 12px; }
+input, select, textarea { font-size: 14px; min-height: 38px; padding: 8px 11px; }
+button.term-btn { font-size: 13px; min-height: 36px; padding: 7px 12px; }
+.workbench-page { padding: 32px clamp(20px, 3vw, 48px) 56px; }
+.workbench-intro { margin-bottom: 30px; padding-bottom: 26px; }
+.workbench-intro h2 { font-size: 30px; letter-spacing: -.04em; }
+.workbench-intro p { font-size: 13px; line-height: 1.75; color: #aaa; max-width: 900px; }
+.eyebrow { font-size: 11px; }
+.settings-section { margin-top: 34px; }
+.section-heading { margin-bottom: 18px; gap: 20px; }
+.section-heading h3 { font-size: 16px; }
+.section-heading p { font-size: 12px; line-height: 1.6; color: #999; }
+.state-badge { font-size: 10px; padding: 5px 8px; letter-spacing: .04em; }
+.workbench-button { font-size: 12px; min-height: 38px; padding: 9px 13px; }
+.notice-line { font-size: 13px; line-height: 1.65; padding: 14px 16px; gap: 12px; }
+.notice-line > span { font-size: 10px; }
+.integration-card, .provider-health-card, .preference-card, .setup-grid article { padding: 18px; }
+.integration-copy strong, .provider-health-card strong { font-size: 14px; }
+.integration-copy p, .provider-health-card p, .provider-health-card small { font-size: 12px; line-height: 1.65; }
+.security-note { padding: 20px; gap: 16px; }
+.security-note strong { font-size: 14px; }
+.security-note p { font-size: 12px; line-height: 1.75; }
+.preferences-grid { gap: 14px; }
+.preference-card label, .preference-label { font-size: 13px; }
+.preference-card p, .preference-hints { font-size: 11px; line-height: 1.6; }
+.rss-add-form { gap: 14px; }
+.rss-add-form label { font-size: 12px; gap: 8px; }
+.rss-feed-row { padding: 14px 16px; gap: 14px; }
+.rss-feed-copy strong { font-size: 13px; }
+.rss-feed-copy span, .rss-security-note { font-size: 12px; line-height: 1.6; }
+.setup-grid { gap: 14px; }
+.setup-grid article strong { font-size: 14px; }
+.setup-grid article p { font-size: 12px; line-height: 1.7; }
+.setup-grid code { font-size: 12px; overflow-wrap: anywhere; }
+@media (max-width: 1200px) {
+  .terminal-sidebar { width: 210px; min-width: 210px; max-width: 210px; }
+  .workbench-page { padding: 24px 22px 42px; }
+}
+@media (max-width: 780px) {
+  html, body { font-size: 14px !important; }
+  .terminal-sidebar { width: 58px; min-width: 58px; max-width: 58px; }
+  .view-heading { padding: 16px; }
+  .view-heading h1 { font-size: 21px; }
+  .workbench-intro h2 { font-size: 26px; }
+}
