@@ -27,10 +27,10 @@ function configuredStatus(): IntegrationState[] {
   return [
     { id: "ai", label: "Anthropic AI", configured: ai, mode: ai ? "ready-to-test" : "not-configured", detail: ai ? "Server API key is present; request health is checked when used." : "Set ANTHROPIC_API_KEY on the API server." },
     { id: "alpaca", label: "Alpaca", configured: alpaca, mode: alpaca ? "ready-to-test" : "not-configured", detail: alpaca ? "Server credentials are present; run a live account handshake." : "Set ALPACA_API_KEY and ALPACA_SECRET_KEY on the API server." },
-    { id: "ibkr", label: "Interactive Brokers", configured: ibkr, mode: ibkr ? "ready-to-test" : "not-configured", detail: ibkr ? "Gateway details are present; session authentication still needs testing." : "Requires a reachable Client Portal Gateway and account ID." },
-    { id: "oanda", label: "OANDA", configured: oanda, mode: oanda ? "ready-to-test" : "not-configured", detail: oanda ? "Token and account ID are present; API handshake still needs testing." : "Set OANDA_API_TOKEN and OANDA_ACCOUNT_ID on the API server." },
-    { id: "tradovate", label: "Tradovate", configured: tradovate, mode: tradovate ? "ready-to-test" : "not-configured", detail: tradovate ? "Access token is present; session and permissions need testing." : "OAuth setup and server-side token storage are required." },
-    { id: "mt5", label: "MetaTrader 5", configured: mt5, mode: mt5 ? "ready-to-test" : "not-configured", detail: mt5 ? "Bridge endpoint and token are present; health check still required." : "Requires a secured MT5 bridge or Expert Advisor connector." },
+    { id: "ibkr", label: "Interactive Brokers", configured: false, mode: "manual-setup", detail: "Not connected: the IBKR gateway/session adapter is not implemented in this version." },
+    { id: "oanda", label: "OANDA", configured: false, mode: "manual-setup", detail: "Not connected: the OANDA authentication and account adapter is not implemented in this version." },
+    { id: "tradovate", label: "Tradovate", configured: false, mode: "manual-setup", detail: "Not connected: OAuth handling and the Tradovate API adapter are not implemented in this version." },
+    { id: "mt5", label: "MetaTrader 5", configured: false, mode: "manual-setup", detail: "Not connected: a secured MT5 bridge/EA protocol and health check are not implemented in this version." },
     { id: "rss", label: "Custom RSS feeds", configured: rss, mode: rss ? "ready-to-test" : "not-configured", detail: rss ? "RSS_FEEDS is set on the API server." : "Add comma-separated trusted RSS/Atom URLs to RSS_FEEDS on the API server." },
     { id: "polymarket", label: "Polymarket public data", configured: true, mode: "ready-to-test", detail: "Public Gamma API data; no wallet permissions are needed to read markets." },
   ];
