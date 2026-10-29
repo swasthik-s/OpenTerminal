@@ -1,0 +1,22 @@
+{
+  "id": "the5ers-high-stakes-100k",
+  "firm": "The5ers",
+  "program": "High Stakes",
+  "accountSize": 100000,
+  "phases": [
+    { "name": "Challenge", "profitTargetPct": 8, "minTradingDays": 3 },
+    { "name": "Verification", "profitTargetPct": 5, "minTradingDays": 3 }
+  ],
+  "maxDailyLossPct": 5,
+  "maxTotalLossPct": 10,
+  "drawdownType": "static",
+  "dailyResetTimezone": "VERIFY",
+  "dailyLossBasis": "equity-incl-floating",
+  "newsRestrictionMinutes": 2,
+  "eaAllowed": true,
+  "eaRestrictions": [
+    "VERIFY official terms for prohibited strategies, stop-loss requirements, and news restrictions"
+  ],
+  "sourceUrl": "https://the5ers.com/faqs/what-are-the-general-rules-for-the-high-stakes-program/",
+  "lastVerified": "VERIFY"
+}
