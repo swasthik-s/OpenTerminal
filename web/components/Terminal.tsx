@@ -9,46 +9,37 @@ import { useTerminal } from "../store/terminal";
 
 export default function Terminal() {
   const setCommandOpen = useTerminal((s) => s.setCommandOpen);
-  const openTab = useTerminal((s) => s.openTab);
+  const setActiveTab = useTerminal((s) => s.setActiveTab);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
         setCommandOpen(true);
         return;
       }
-      if (e.altKey) {
+      if (event.altKey) {
         const map: Record<string, () => void> = {
-          "1": () => openTab("chart"),
-          "2": () => openTab("quote"),
-          "3": () => openTab("news"),
-          "4": () => openTab("screener"),
-          "5": () => openTab("heatmap"),
-          "6": () => openTab("crypto"),
-          "7": () => openTab("options"),
-          "8": () => openTab("portfolio"),
-          "9": () => openTab("ai"),
+          "1": () => setActiveTab("chart"), "2": () => setActiveTab("quote"),
+          "3": () => setActiveTab("news"), "4": () => setActiveTab("screener"),
+          "5": () => setActiveTab("heatmap"), "6": () => setActiveTab("crypto"),
+          "7": () => setActiveTab("options"), "8": () => setActiveTab("portfolio"),
+          "9": () => setActiveTab("ai"),
         };
-        const fn = map[e.key];
-        if (fn) {
-          e.preventDefault();
-          fn();
-        }
+        const action = map[event.key];
+        if (action) { event.preventDefault(); action(); }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setCommandOpen, openTab]);
+  }, [setCommandOpen, setActiveTab]);
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="terminal-app">
       <TopBar />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="terminal-body">
         <Sidebar />
-        <main className="flex-1 overflow-auto">
-          <Workspace />
-        </main>
+        <main className="terminal-main"><Workspace /></main>
       </div>
       <CommandPalette />
     </div>
