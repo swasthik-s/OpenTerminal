@@ -5,7 +5,7 @@ import ftmo from "../rules/ftmo-2step-100k.json";
 
 const rule = parsePropRule({
   ...ftmo,
-  dailyResetTimezone: "UTC",
+  dailyResetTimezone: "Europe/Prague",
   lastVerified: "2026-10-29",
 });
 
@@ -18,11 +18,12 @@ const baseInput = {
   floatingPnl: 0,
   additionalCosts: 0,
   phaseClosedProfit: 0,
+  phaseIndex: 0,
   tradingDays: 0,
 };
 
 describe("calculateRiskStatus", () => {
-  it("calculates daily loss and headroom using realized and floating P/L", () => {
+  it("calculates provisional daily loss and headroom from supplied P/L values", () => {
     const result = calculateRiskStatus(rule, {
       ...baseInput,
       dailyClosedPnl: -2_000,
@@ -34,6 +35,7 @@ describe("calculateRiskStatus", () => {
     expect(result.dailyHeadroom).toBe(1_900);
     expect(result.dailySoftStop).toBe(true);
     expect(result.dailyHardStop).toBe(false);
+    expect(result.eligibleForLiveUse).toBe(false);
   });
 
   it("flags hard stop and overall drawdown guard with conservative buffers", () => {
@@ -47,15 +49,16 @@ describe("calculateRiskStatus", () => {
     expect(result.overallDrawdownGuard).toBe(true);
   });
 
-  it("computes phase target progress and minimum days", () => {
-    const result = calculateRiskStatus(rule, {
+  it("calculates phase target progress and phase-specific minimum days", () => {
+    const verification = calculateRiskStatus(rule, {
       ...baseInput,
-      phaseClosedProfit: 5_000,
+      phaseIndex: 1,
+      phaseClosedProfit: 2_500,
       tradingDays: 2,
     }, buffers);
-    expect(result.phaseProfitTarget).toBe(10_000);
-    expect(result.phaseProfitProgressPct).toBe(50);
-    expect(result.minimumTradingDays).toBe(4);
+    expect(verification.phaseProfitTarget).toBe(5_000);
+    expect(verification.phaseProfitProgressPct).toBe(50);
+    expect(verification.minimumTradingDays).toBe(4);
   });
 
   it("rejects unverified trailing-drawdown calculation", () => {
@@ -68,16 +71,18 @@ describe("calculateRiskStatus", () => {
       .toThrow(/high-water-mark/);
   });
 
-  it("rejects invalid buffer order and limits", () => {
+  it("rejects bad buffers and out-of-range phase indices", () => {
     expect(() => calculateRiskStatus(rule, baseInput, {
       softStopAtPct: 80, hardStopAtPct: 60, overallGuardAtPct: 80,
     })).toThrow(/below hard-stop/);
     expect(() => calculateRiskStatus(rule, baseInput, {
       softStopAtPct: 100, hardStopAtPct: 101, overallGuardAtPct: 80,
     })).toThrow(/greater than 0/);
+    expect(() => calculateRiskStatus(rule, { ...baseInput, phaseIndex: 9 }, buffers))
+      .toThrow(/phaseIndex/);
   });
 
-  it("cannot treat VERIFY placeholders as a verified rule", () => {
+  it("rejects rule files that still contain VERIFY placeholders", () => {
     expect(() => parsePropRule(ftmo)).toThrow();
   });
 });
