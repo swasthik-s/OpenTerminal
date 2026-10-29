@@ -6,6 +6,8 @@ import { isSafeHttpUrl } from "../../lib/links";
 import { useTerminal } from "../../store/terminal";
 import Flash from "../Flash";
 
+import { usePreferences } from "../../store/preferences";
+
 type RecapRow = { symbol: string; name: string; changePercent: number | null };
 type RecapIndex = { symbol: string; label: string; price: number | null; changePercent: number | null };
 type RecapSector = { sector: string; avgChangePercent: number };
@@ -23,11 +25,12 @@ type Recap = {
 };
 
 export default function RecapWidget() {
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
   const setActiveSymbol = useTerminal((s) => s.setActiveSymbol);
   const { data, error } = useQuery({
     queryKey: ["recap"],
     queryFn: () => apiGet<Recap>("/api/recap"),
-    refetchInterval: 15_000,
+    refetchInterval: refreshSeconds * 1000,
   });
 
   if (error) return <div className="p-2 down">Error: {(error as Error).message}</div>;
