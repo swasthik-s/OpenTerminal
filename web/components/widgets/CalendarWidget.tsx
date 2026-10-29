@@ -6,6 +6,8 @@ import { apiGet, fmt, pctClass } from "../../lib/api";
 import { symbolsParam } from "../../lib/symbol";
 import { useTerminal } from "../../store/terminal";
 
+import { usePreferences } from "../../store/preferences";
+
 type EconEvent = {
   title: string;
   country: string;
@@ -48,7 +50,7 @@ function EconomicTab() {
   const { data = [], isLoading, error } = useQuery({
     queryKey: ["econ-calendar"],
     queryFn: () => apiGet<EconEvent[]>("/api/econ-calendar"),
-    refetchInterval: 300_000,
+    refetchInterval: refreshSeconds * 1000,
   });
 
   const events = useMemo(
@@ -251,6 +253,7 @@ function EarningsTab() {
 }
 
 export default function CalendarWidget() {
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
   const [tab, setTab] = useState<"econ" | "earnings">("econ");
 
   return (
