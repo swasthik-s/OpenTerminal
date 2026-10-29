@@ -7,7 +7,10 @@ import { normalizeSymbol, symbolsParam } from "../../lib/symbol";
 import { useTerminal } from "../../store/terminal";
 import Flash from "../Flash";
 
+import { usePreferences } from "../../store/preferences";
+
 export default function WatchlistWidget() {
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
   const watchlist = useTerminal((s) => s.watchlist);
   const addToWatchlist = useTerminal((s) => s.addToWatchlist);
   const removeFromWatchlist = useTerminal((s) => s.removeFromWatchlist);
@@ -19,7 +22,7 @@ export default function WatchlistWidget() {
     queryKey: ["watchlist", watchlist.join(",")],
     queryFn: () => apiGet<Quote[]>(`/api/quotes?symbols=${symbolsParam(watchlist)}`),
     enabled: watchlist.length > 0,
-    refetchInterval: 1_000,
+    refetchInterval: refreshSeconds * 1000,
   });
 
   return (
