@@ -5,6 +5,8 @@ import { apiGet, fmt, fmtBig, pctClass } from "../../lib/api";
 import Flash from "../Flash";
 import { useTerminal } from "../../store/terminal";
 
+import { usePreferences } from "../../store/preferences";
+
 type CryptoRow = {
   id: string; symbol: string; name: string; price: number | null;
   changePercent24h: number | null; marketCap: number | null; volume24h: number | null;
@@ -36,16 +38,17 @@ function Sparkline({ data }: { data: number[] }) {
 }
 
 export default function CryptoWidget() {
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
   const setActiveSymbol = useTerminal((s) => s.setActiveSymbol);
   const { data = [], error } = useQuery({
     queryKey: ["crypto"],
     queryFn: () => apiGet<CryptoRow[]>("/api/crypto"),
-    refetchInterval: 1_000,
+    refetchInterval: refreshSeconds * 1000,
   });
   const { data: global } = useQuery({
     queryKey: ["crypto-global"],
     queryFn: () => apiGet<GlobalStats>("/api/crypto/global"),
-    refetchInterval: 30_000,
+    refetchInterval: refreshSeconds * 1000,
   });
 
   if (error) return <div className="p-2 down">Error: {(error as Error).message}</div>;
