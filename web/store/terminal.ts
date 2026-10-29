@@ -140,7 +140,7 @@ export const useTerminal = create<TerminalState>()(
       removeFromWatchlist: (s) => set((st) => ({ watchlist: st.watchlist.filter((x) => x !== s) })),
       resetWorkspace: () => set({ widgets: DEFAULT_WIDGETS, layout: DEFAULT_LAYOUT, activeTab: "ai" }),
     }),
-    { name: "openterminal-workspace", version: 3, migrate: (persistedState) => { const state = persistedState as Partial<TerminalState>; return { ...state, widgets: DEFAULT_WIDGETS, layout: DEFAULT_LAYOUT, activeTab: "ai" } as TerminalState; } }
+    { name: "openterminal-workspace", version: 4, migrate: (persistedState) => { const state = persistedState as Partial<TerminalState>; return { ...state, widgets: DEFAULT_WIDGETS, layout: DEFAULT_LAYOUT, activeTab: "ai" } as TerminalState; } }
   )
 );
 
