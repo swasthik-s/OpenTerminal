@@ -679,3 +679,8 @@ a.news-headline:hover { color:#ffc16b; }
 .provider-health-card details p { color:#b67b55; overflow-wrap:anywhere; }
 @media(max-width:1000px) { .provider-health-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:700px) { .provider-health-grid { grid-template-columns:1fr; } }
+
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
