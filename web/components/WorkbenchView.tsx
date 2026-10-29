@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, apiPost, apiDelete } from "../lib/api";
 import { usePreferences } from "../store/preferences";
@@ -54,7 +54,7 @@ export default function WorkbenchView({ view }: { view: View }) {
   const resetPreferences = usePreferences((s) => s.resetPreferences);
   const integrationsQuery = useQuery({ queryKey: ["integration-status"], queryFn: () => apiGet<{checkedAt:string; integrations:Integration[]}>("/api/integrations/status"), enabled: view === "settings", refetchInterval: refreshSeconds * 1000 });
   const rssQuery = useQuery({ queryKey: ["rss-feeds"], queryFn: () => apiGet<RssFeed[]>("/api/integrations/rss-feeds"), enabled: view === "settings" });
-  const addRssFeed = async (event: React.FormEvent) => { event.preventDefault(); if (!rssUrl.trim()) return; setRssBusy(true); setRssNotice(""); try { await apiPost("/api/integrations/rss-feeds", { url: rssUrl.trim(), label: rssLabel.trim() || undefined }); setRssUrl(""); setRssLabel(""); setRssNotice("Feed validated and saved. It will appear in news results."); await Promise.all([rssQuery.refetch(), integrationsQuery.refetch()]); } catch (error) { setRssNotice((error as Error).message); } finally { setRssBusy(false); } };
+  const addRssFeed = async (event: FormEvent) => { event.preventDefault(); if (!rssUrl.trim()) return; setRssBusy(true); setRssNotice(""); try { await apiPost("/api/integrations/rss-feeds", { url: rssUrl.trim(), label: rssLabel.trim() || undefined }); setRssUrl(""); setRssLabel(""); setRssNotice("Feed validated and saved. It will appear in news results."); await Promise.all([rssQuery.refetch(), integrationsQuery.refetch()]); } catch (error) { setRssNotice((error as Error).message); } finally { setRssBusy(false); } };
   const removeRssFeed = async (id:number) => { try { await apiDelete("/api/integrations/rss-feeds/" + id); await Promise.all([rssQuery.refetch(), integrationsQuery.refetch()]); setRssNotice("RSS feed removed."); } catch (error) { setRssNotice((error as Error).message); } };
   const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: () => apiGet<{fetchedAt:string; count:number; markets:PolyMarket[]}>("/api/polymarket/markets"), enabled: view === "polymarket", refetchInterval: 60_000, staleTime: 30_000 });
   const runAlpacaTest = async () => { setAlpacaTest({loading:true,message:"Checking server-side Alpaca credentials…"}); try { const result = await apiPost<{ok:boolean;paper:boolean;account?:{id?:string;status?:string;currency?:string;tradingBlocked?:boolean};error?:string}>("/api/integrations/alpaca/test",{}); setAlpacaTest({loading:false,ok:result.ok,message:result.ok ? "Account handshake succeeded · " + (result.paper ? "PAPER" : "LIVE") + " · " + (result.account?.status ?? "status unknown") + " · " + (result.account?.currency ?? "currency unknown") : "Connection failed"}); } catch (error) { setAlpacaTest({loading:false,ok:false,message:(error as Error).message}); } };
