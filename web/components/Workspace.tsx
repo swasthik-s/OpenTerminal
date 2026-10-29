@@ -113,8 +113,8 @@ export default function Workspace() {
       className="layout"
       layout={layout}
       cols={12}
-      rowHeight={30}
-      margin={[4, 4]}
+      rowHeight={34}
+      margin={[8, 8]}
       draggableHandle=".panel-title"
       onLayoutChange={(l) => setLayout(l.map(({ i, x, y, w, h }) => ({ i, x, y, w, h })))}
     >
