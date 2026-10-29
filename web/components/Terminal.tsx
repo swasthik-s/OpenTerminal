@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type CSSProperties } from "react";
 import TopBar from "./TopBar";
 import Sidebar from "./Sidebar";
 import Workspace from "./Workspace";
@@ -42,7 +42,7 @@ export default function Terminal() {
   }, [setCommandOpen, setActiveTab]);
 
   return (
-    <div className="terminal-app" data-density={density} data-motion={animations ? "on" : "off"} style={{ "--font-scale": fontScale } as React.CSSProperties}>
+    <div className="terminal-app" data-density={density} data-motion={animations ? "on" : "off"} style={{ "--font-scale": fontScale } as CSSProperties}>
       <TopBar />
       <div className="terminal-body">
         <Sidebar />
