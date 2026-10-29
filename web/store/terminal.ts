@@ -36,8 +36,13 @@ type TerminalState = {
   layout: LayoutItem[];
   watchlist: string[];
   commandOpen: boolean;
+  activeTab: "dashboard" | WidgetType;
+  openTabs: WidgetType[];
   setActiveSymbol: (s: string) => void;
   setCommandOpen: (open: boolean) => void;
+  openTab: (type: WidgetType) => void;
+  setActiveTab: (tab: "dashboard" | WidgetType) => void;
+  closeTab: (type: WidgetType) => void;
   addWidget: (type: WidgetType, symbol?: string) => void;
   removeWidget: (id: string) => void;
   setWidgetSymbol: (id: string, symbol: string) => void;
@@ -90,11 +95,16 @@ export const useTerminal = create<TerminalState>()(
       layout: DEFAULT_LAYOUT,
       watchlist: ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "GOOGL", "META", "SPY"],
       commandOpen: false,
+      activeTab: "dashboard",
+      openTabs: [],
       setActiveSymbol: (s) => {
         const sym = normalizeSymbol(s);
         if (sym) set({ activeSymbol: sym });
       },
       setCommandOpen: (open) => set({ commandOpen: open }),
+      openTab: (type) => set((st) => ({ openTabs: st.openTabs.includes(type) ? st.openTabs : [...st.openTabs, type], activeTab: type })),
+      setActiveTab: (tab) => set({ activeTab: tab }),
+      closeTab: (type) => set((st) => { const openTabs = st.openTabs.filter((item) => item !== type); return { openTabs, activeTab: st.activeTab === type ? (openTabs[openTabs.length - 1] ?? "dashboard") : st.activeTab }; }),
       addWidget: (type, symbol) =>
         set((st) => {
           const id = `w-${type}-${Date.now()}`;
