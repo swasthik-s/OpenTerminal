@@ -20,11 +20,9 @@ function Clock({ tz, label }: { tz: string; label: string }) {
   }, []);
   if (!now) return null;
   return (
-    <span className="dim">
-      {label}{" "}
-      <span className="text-[var(--text)]">
-        {now.toLocaleTimeString("en-GB", { timeZone: tz, hour12: false })}
-      </span>
+    <span className="market-clock">
+      <span className="market-clock-label">{label}</span>
+      <span className="market-clock-time">{now.toLocaleTimeString("en-GB", { timeZone: tz, hour12: false })}</span>
     </span>
   );
 }
@@ -33,7 +31,7 @@ function marketStateNY(): { label: string; open: boolean } {
   const ny = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
   const day = ny.getDay();
   const mins = ny.getHours() * 60 + ny.getMinutes();
-  const open = day >= 1 && day <= 5 && mins >= 570 && mins < 960; // 09:30–16:00
+  const open = day >= 1 && day <= 5 && mins >= 570 && mins < 960;
   return { label: open ? "NYSE OPEN" : "NYSE CLOSED", open };
 }
 
@@ -45,31 +43,33 @@ export default function TopBar() {
     queryFn: () => apiGet<Status>("/api/status"),
     refetchInterval: 30_000,
   });
-
   const market = marketStateNY();
   const healthy = status?.providers.filter((p) => p.ok > 0) ?? [];
 
   return (
-    <header className="flex items-center gap-4 px-3 h-8 bg-[var(--panel-2)] border-b border-[var(--border)] text-[11px] shrink-0">
-      <span className="amber font-bold tracking-widest">OPENTERMINAL</span>
-      <span className={market.open ? "up" : "down"}>● {market.label}</span>
-      <Clock tz="America/New_York" label="NY" />
-      <Clock tz="Europe/Rome" label="MIL" />
-      <Clock tz="Europe/London" label="LDN" />
-      <Clock tz="Asia/Tokyo" label="TYO" />
-      <button
-        className="term-btn flex-1 max-w-md text-left dim"
-        onClick={() => setCommandOpen(true)}
-      >
-        {activeSymbol} — search symbol… <span className="float-right">⌘K</span>
-      </button>
-      <span className="dim ml-auto">
-        feeds:{" "}
-        {healthy.length > 0
-          ? healthy.map((p) => `${p.name} ${p.lastLatencyMs ?? "—"}ms`).join(" · ")
-          : "connecting…"}
+    <header className="topbar">
+      <div className="brand-lockup">
+        <span className="brand-mark">O</span>
+        <span className="brand-name">OPEN<span>TERMINAL</span></span>
+      </div>
+      <span className={market.open ? "market-status up" : "market-status down"}>
+        <span className="status-dot" />{market.label}
       </span>
-      <span className={status?.ai ? "up" : "dim"}>AI {status?.ai ? "●" : "○"}</span>
+      <div className="clock-strip">
+        <Clock tz="America/New_York" label="NY" />
+        <Clock tz="Europe/Rome" label="MIL" />
+        <Clock tz="Europe/London" label="LDN" />
+        <Clock tz="Asia/Tokyo" label="TYO" />
+      </div>
+      <button className="global-search" onClick={() => setCommandOpen(true)}>
+        <span className="search-icon">⌕</span>
+        <span className="search-copy"><strong>{activeSymbol}</strong><span>Search symbol or command…</span></span>
+        <kbd>⌘ K</kbd>
+      </button>
+      <div className="topbar-meta">
+        <span className="feed-status"><span className={healthy.length ? "status-dot up-bg" : "status-dot idle-bg"} />{healthy.length ? `${healthy.length} FEEDS LIVE` : "CONNECTING FEEDS"}</span>
+        <span className={status?.ai ? "ai-status up" : "ai-status dim"}><span className="status-dot" />AI {status?.ai ? "READY" : "OFFLINE"}</span>
+      </div>
     </header>
   );
 }
