@@ -1,24 +1,25 @@
 "use client";
 
 import { useTerminal } from "../store/terminal";
+import AppIcon, { type IconName } from "./AppIcon";
 
-const GROUPS = [
+const GROUPS: { label: string; items: { type: "chart" | "watchlist" | "news" | "screener" | "strategy" | "backtest" | "polymarket" | "portfolio" | "settings"; title: string; icon: IconName }[] }[] = [
   { label: "MARKETS", items: [
-    { type: "chart", title: "Charts", icon: "⌁" },
-    { type: "watchlist", title: "Watchlist", icon: "☆" },
-    { type: "news", title: "News", icon: "▤" },
-    { type: "screener", title: "Screener", icon: "⌕" },
+    { type: "chart", title: "Charts", icon: "chart" },
+    { type: "watchlist", title: "Watchlist", icon: "star" },
+    { type: "news", title: "News & AI", icon: "newspaper" },
+    { type: "screener", title: "Screener", icon: "search" },
   ]},
   { label: "TRADING LAB", items: [
-    { type: "strategy", title: "Strategy builder", icon: "⌘" },
-    { type: "backtest", title: "Backtest engine", icon: "∿" },
-    { type: "polymarket", title: "Polymarket", icon: "P" },
+    { type: "strategy", title: "Strategy builder", icon: "sliders" },
+    { type: "backtest", title: "Backtest engine", icon: "activity" },
+    { type: "polymarket", title: "Polymarket", icon: "globe" },
   ]},
   { label: "ACCOUNT", items: [
-    { type: "portfolio", title: "Portfolio", icon: "▥" },
-    { type: "settings", title: "Connections & settings", icon: "⚙" },
+    { type: "portfolio", title: "Portfolio", icon: "wallet" },
+    { type: "settings", title: "Settings & connections", icon: "settings" },
   ]},
-] as const;
+];
 
 export default function Sidebar() {
   const activeTab = useTerminal((s) => s.activeTab);
@@ -28,15 +29,15 @@ export default function Sidebar() {
     <aside className="terminal-sidebar">
       <div className="sidebar-heading"><span>WORKSPACE</span><span className="sidebar-live-mark">● LOCAL</span></div>
       <nav className="sidebar-items" aria-label="Main navigation">
-        <button onClick={() => setActiveTab("ai")} className={`sidebar-item ${activeTab === "ai" ? "active" : ""}`}>
-          <span className="sidebar-icon">✳</span><span className="sidebar-label">AI Terminal</span><span className="sidebar-shortcut">⌘K</span>
+        <button onClick={() => setActiveTab("ai")} className={"sidebar-item " + (activeTab === "ai" ? "active" : "")}>
+          <span className="sidebar-icon"><AppIcon name="sparkles" /></span><span className="sidebar-label">AI Terminal</span><span className="sidebar-shortcut">⌘K</span>
         </button>
         {GROUPS.map((group) => (
           <section className="sidebar-nav-group" key={group.label}>
             <div className="sidebar-group">{group.label}</div>
             {group.items.map((item) => (
-              <button key={item.type} onClick={() => setActiveTab(item.type)} className={`sidebar-item ${activeTab === item.type ? "active" : ""}`}>
-                <span className="sidebar-icon">{item.icon}</span><span className="sidebar-label">{item.title}</span>
+              <button key={item.type} onClick={() => setActiveTab(item.type)} className={"sidebar-item " + (activeTab === item.type ? "active" : "")}>
+                <span className="sidebar-icon"><AppIcon name={item.icon} /></span><span className="sidebar-label">{item.title}</span>
               </button>
             ))}
           </section>
