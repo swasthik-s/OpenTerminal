@@ -22,6 +22,7 @@ import InsiderWidget from "./widgets/InsiderWidget";
 import TvWidget from "./widgets/TvWidget";
 import RecapWidget from "./widgets/RecapWidget";
 import WidgetErrorBoundary from "./WidgetErrorBoundary";
+import WorkbenchView from "./WorkbenchView";
 
 const Grid = WidthProvider(GridLayout);
 const TITLES: Record<WidgetType | "dashboard", string> = {
@@ -122,6 +123,7 @@ export default function Workspace() {
   const activeSymbol = useTerminal((s) => s.activeSymbol);
   const activeTab = useTerminal((s) => s.activeTab);
 
+  if (activeTab === "settings" || activeTab === "strategy" || activeTab === "backtest" || activeTab === "polymarket") return <WorkbenchView view={activeTab} />;
   if (activeTab !== "dashboard") return <SingleView type={activeTab} />;
 
   return (
