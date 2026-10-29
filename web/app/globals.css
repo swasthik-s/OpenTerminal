@@ -652,3 +652,16 @@ a.news-headline:hover { color:#ffc16b; }
 .terminal-app[data-motion="off"] *, .terminal-app[data-motion="off"] *::before, .terminal-app[data-motion="off"] *::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; }
 @media(max-width:1050px) { .preferences-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.integration-card { flex-wrap:wrap; }.integration-copy { min-width:60%; } }
 @media(max-width:700px) { .preferences-grid,.setup-grid { grid-template-columns:1fr; }.integration-actions { flex-wrap:wrap; }.integration-card { align-items:flex-start; }.integration-copy { flex:1 1 calc(100% - 55px); }.news-card-main { padding:13px 12px; }.news-ai-panel { margin-inline:12px; }.news-toolbar { padding-inline:10px; } }
+
+
+.rss-add-form { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) auto; align-items:end; gap:10px; padding:15px; border:1px solid #242424; background:#050505; }
+.rss-add-form label { display:flex; flex-direction:column; gap:7px; color:#999; font-size:10px; }
+.rss-add-form input { width:100%; min-height:36px; font-size:11px; }
+.rss-feed-list { display:flex; flex-direction:column; gap:7px; margin-top:10px; }
+.rss-feed-row { display:flex; align-items:center; gap:12px; min-width:0; padding:11px 12px; border:1px solid #242424; background:#040404; }
+.rss-feed-icon { display:grid; place-items:center; width:30px; height:30px; flex-shrink:0; color:var(--amber); background:#100b05; border:1px solid #3c2b18; }
+.rss-feed-copy { display:flex; flex-direction:column; flex:1; min-width:0; gap:4px; }
+.rss-feed-copy strong { color:#ddd; font-size:11px; }
+.rss-feed-copy span { color:#777; font-size:9px; overflow-wrap:anywhere; }
+.rss-security-note { color:#666; font-size:9px; line-height:1.7; margin-top:10px; }
+@media(max-width:800px) { .rss-add-form { grid-template-columns:1fr; }.rss-feed-row { flex-wrap:wrap; }.rss-feed-copy { flex:1 1 calc(100% - 50px); } }
