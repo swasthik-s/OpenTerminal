@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { db } from "../db.js";
 
 export type NewsItem = {
   title: string;
