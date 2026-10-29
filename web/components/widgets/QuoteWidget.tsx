@@ -9,8 +9,8 @@ import { usePreferences } from "../../store/preferences";
 
 type ShortVolume = { date: string; shortVolume: number; shortExemptVolume: number; totalVolume: number; shortVolumePercent: number };
 
-export default function QuoteWidget({
-  const refreshSeconds = usePreferences((s) => s.refreshSeconds); widget }: { widget: WidgetInstance }) {
+export default function QuoteWidget({ widget }: { widget: WidgetInstance }) {
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
   const symbol = useWidgetSymbol(widget);
   const { data, error } = useQuery({
     queryKey: ["quote", symbol],
