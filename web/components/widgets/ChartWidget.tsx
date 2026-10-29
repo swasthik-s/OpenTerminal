@@ -254,7 +254,7 @@ export default function ChartWidget({ widget }: { widget: WidgetInstance }) {
         ))}
       </div>
       {error && <div className="p-2 down">Error: {(error as Error).message}</div>}
-      <div className="relative flex-1 min-h-0">
+      <div className="relative flex-1 min-h-[420px]">
         {legend && (
           <div className="absolute top-1 left-2 z-10 flex flex-col gap-0.5 text-[11px] pointer-events-none bg-[rgba(10,10,10,0.7)] px-2 py-1 rounded max-w-[95%]">
             <div className="flex gap-3">
