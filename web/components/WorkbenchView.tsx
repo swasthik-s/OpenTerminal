@@ -12,16 +12,7 @@ type RssFeed = { id:number; url:string; label:string; enabled:number; createdAt:
 type ProviderStatus = { name:string; ok:number; failed:number; lastLatencyMs:number|null; lastError:string|null; lastSuccess:string|null };
 type PolyMarket = { question?: string; slug?: string; volume24hr?: number | string; volume_24hr?: number | string; volume?: number | string; liquidity?: number | string; outcomePrices?: string; outcome_prices?: string; active?: boolean; closed?: boolean; endDate?: string; end_date?: string };
 
-const BROKERS = [
-  { name: "Alpaca", detail: "Stocks, ETFs & paper trading", method: "API key / OAuth" },
-  { name: "Interactive Brokers", detail: "Multi-asset brokerage", method: "TWS / Client Portal gateway" },
-  { name: "OANDA", detail: "FX & CFD accounts", method: "Personal access token" },
-  { name: "Tradovate", detail: "Futures accounts", method: "OAuth" },
-  { name: "MetaTrader 5", detail: "FX, metals & CFD terminals", method: "Bridge / Expert Advisor" },
-];
-
 export default function WorkbenchView({ view }: { view: View }) {
-  const [brokerNotice, setBrokerNotice] = useState("");
   const [strategyName, setStrategyName] = useState("EMA Pullback");
   const [market, setMarket] = useState("XAUUSD");
   const [timeframe, setTimeframe] = useState("M15");
