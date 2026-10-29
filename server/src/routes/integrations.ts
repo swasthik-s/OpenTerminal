@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Anthropic } from "@anthropic-ai/sdk";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { XMLParser } from "fast-xml-parser";
@@ -92,6 +93,22 @@ integrationsRouter.delete("/rss-feeds/:id", (req, res) => {
 
 integrationsRouter.get("/status", (_req, res) => {
   res.json({ checkedAt: new Date().toISOString(), integrations: configuredStatus() });
+});
+
+integrationsRouter.post("/ai/test", async (_req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(400).json({ ok: false, error: "Set ANTHROPIC_API_KEY on the API server first." });
+  try {
+    const client = new Anthropic();
+    const response = await client.messages.create({
+      model: process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8",
+      max_tokens: 12,
+      messages: [{ role: "user", content: "Reply with the single word OK." }],
+    });
+    const answer = response.content.flatMap((block) => block.type === "text" ? [block.text] : []).join("").trim();
+    res.json({ ok: true, model: process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8", response: answer, checkedAt: new Date().toISOString() });
+  } catch (error) {
+    res.status(502).json({ ok: false, error: error instanceof Error ? error.message : "AI provider handshake failed." });
+  }
 });
 
 integrationsRouter.post("/alpaca/test", async (_req, res) => {
