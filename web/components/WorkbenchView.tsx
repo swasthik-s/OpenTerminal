@@ -8,7 +8,8 @@ import AppIcon from "./AppIcon";
 
 type View = "settings" | "strategy" | "backtest" | "polymarket";
 type Integration = { id: string; label: string; configured: boolean; mode: string; detail: string };
-type RssFeed = { id:number; url:string; label:string; enabled:number; createdAt:string };\ntype ProviderStatus = { name:string; ok:number; failed:number; lastLatencyMs:number|null; lastError:string|null; lastSuccess:string|null };
+type RssFeed = { id:number; url:string; label:string; enabled:number; createdAt:string };
+type ProviderStatus = { name:string; ok:number; failed:number; lastLatencyMs:number|null; lastError:string|null; lastSuccess:string|null };
 type PolyMarket = { question?: string; slug?: string; volume24hr?: number | string; volume_24hr?: number | string; volume?: number | string; liquidity?: number | string; outcomePrices?: string; outcome_prices?: string; active?: boolean; closed?: boolean; endDate?: string; end_date?: string };
 
 const BROKERS = [
