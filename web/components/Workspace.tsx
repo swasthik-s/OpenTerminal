@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
 import GridLayout, { WidthProvider } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -21,51 +22,130 @@ import InsiderWidget from "./widgets/InsiderWidget";
 import TvWidget from "./widgets/TvWidget";
 import RecapWidget from "./widgets/RecapWidget";
 import WidgetErrorBoundary from "./WidgetErrorBoundary";
+
 const Grid = WidthProvider(GridLayout);
-function WidgetBody({widget}:{widget:WidgetInstance}) {
- switch(widget.type) {
- case "quote": return <QuoteWidget widget={widget}/>;
- case "chart": return <ChartWidget widget={widget}/>;
- case "watchlist": return <WatchlistWidget/>;
- case "news": return <NewsWidget widget={widget}/>;
- case "heatmap": return <HeatmapWidget/>;
- case "screener": return <ScreenerWidget/>;
- case "crypto": return <CryptoWidget/>;
- case "macro": return <MacroWidget/>;
- case "options": return <OptionsWidget widget={widget}/>;
- case "portfolio": return <PortfolioWidget/>;
- case "ai": return <AiWidget/>;
- case "calendar": return <CalendarWidget/>;
- case "insider": return <InsiderWidget widget={widget}/>;
- case "tv": return <TvWidget/>;
- case "recap": return <RecapWidget/>;
- }
+const TITLES: Record<WidgetType | "dashboard", string> = {
+  dashboard: "Market overview", quote: "Quote monitor", chart: "Price chart", watchlist: "Watchlist",
+  news: "Market news", heatmap: "Market heatmap", screener: "Equity screener", crypto: "Digital assets",
+  macro: "Macro & indexes", options: "Options monitor", portfolio: "Portfolio", ai: "AI research assistant",
+  calendar: "Economic calendar", insider: "Insider activity", tv: "Live TV", recap: "Market recap",
+};
+const SYMBOL_AWARE = ["quote", "chart", "news", "options", "insider"];
+
+function WidgetBody({ widget }: { widget: WidgetInstance }) {
+  switch (widget.type) {
+    case "quote": return <QuoteWidget widget={widget} />;
+    case "chart": return <ChartWidget widget={widget} />;
+    case "watchlist": return <WatchlistWidget />;
+    case "news": return <NewsWidget widget={widget} />;
+    case "heatmap": return <HeatmapWidget />;
+    case "screener": return <ScreenerWidget />;
+    case "crypto": return <CryptoWidget />;
+    case "macro": return <MacroWidget />;
+    case "options": return <OptionsWidget widget={widget} />;
+    case "portfolio": return <PortfolioWidget />;
+    case "ai": return <AiWidget />;
+    case "calendar": return <CalendarWidget />;
+    case "insider": return <InsiderWidget widget={widget} />;
+    case "tv": return <TvWidget />;
+    case "recap": return <RecapWidget />;
+  }
 }
-function SymbolTag({widget,activeSymbol}:{widget:WidgetInstance;activeSymbol:string}) {
- const setWidgetSymbol=useTerminal(s=>s.setWidgetSymbol);
- const [editing,setEditing]=useState(false),[draft,setDraft]=useState("");
- const inputRef=useRef<HTMLInputElement>(null);
- const shown=widget.linked?activeSymbol:widget.symbol??activeSymbol;
- useEffect(()=>{if(!editing)return;setDraft(shown);requestAnimationFrame(()=>inputRef.current?.select());},[editing]);
- if(editing) return <input ref={inputRef} value={draft} onChange={e=>setDraft(e.target.value.toUpperCase())} onMouseDown={e=>e.stopPropagation()} onKeyDown={e=>{if(e.key==="Enter"){const v=normalizeSymbol(draft);if(v)setWidgetSymbol(widget.id,v);setEditing(false);}if(e.key==="Escape")setEditing(false);}} onBlur={()=>setEditing(false)} className="ml-2 w-20 !border-0 !border-b !border-[var(--amber-dim)] bg-transparent text-[var(--text)] px-0 py-0 text-[13px] leading-none"/>;
- return <span className="ml-2 text-[var(--text)] cursor-pointer hover:text-[var(--amber)]" title="Click to set this widget's ticker" onMouseDown={e=>e.stopPropagation()} onClick={()=>setEditing(true)}>{shown}</span>;
+
+function SymbolTag({ widget, activeSymbol }: { widget: WidgetInstance; activeSymbol: string }) {
+  const setWidgetSymbol = useTerminal((s) => s.setWidgetSymbol);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const shown = widget.linked ? activeSymbol : widget.symbol ?? activeSymbol;
+  useEffect(() => {
+    if (!editing) return;
+    setDraft(shown);
+    requestAnimationFrame(() => inputRef.current?.select());
+  }, [editing, shown]);
+  if (editing) return <input ref={inputRef} value={draft} onChange={(e) => setDraft(e.target.value.toUpperCase())} onMouseDown={(e) => e.stopPropagation()} onKeyDown={(e) => {
+    if (e.key === "Enter") { const value = normalizeSymbol(draft); if (value) setWidgetSymbol(widget.id, value); setEditing(false); }
+    if (e.key === "Escape") setEditing(false);
+  }} onBlur={() => setEditing(false)} className="symbol-edit-input" />;
+  return <button type="button" className="symbol-chip" title="Change symbol for this panel" onMouseDown={(e) => e.stopPropagation()} onClick={() => setEditing(true)}>{shown}</button>;
 }
-const TITLES:Record<WidgetType|"dashboard",string>={dashboard:"Overview",quote:"Quote",chart:"Chart",watchlist:"Watchlist",news:"News",heatmap:"Heatmap",screener:"Screener",crypto:"Crypto",macro:"Macro / Indexes",options:"Options",portfolio:"Portfolio",ai:"AI Assistant",calendar:"Calendar",insider:"Insider Activity",tv:"Live TV",recap:"Market Recap"};
-function SingleView({type}:{type:WidgetType}) {
- const activeSymbol=useTerminal(s=>s.activeSymbol);
- const widget:WidgetInstance={id:"tab-"+type,type,linked:true};
- const symbolAware=new Set<WidgetType>(["quote","chart","news","options","insider"]);
- return <section className="single-view"><div className="single-view-heading"><div><div className="single-view-eyebrow">OPENTERMINAL / WORKSPACE</div><h1>{TITLES[type]}{symbolAware.has(type)&&<SymbolTag widget={widget} activeSymbol={activeSymbol}/>}</h1></div><div className="single-view-symbol"><span className="status-dot up-bg"/> ACTIVE SYMBOL <strong>{activeSymbol}</strong></div></div><div className="single-view-content"><WidgetErrorBoundary name={TITLES[type]}><WidgetBody widget={widget}/></WidgetErrorBoundary></div></section>;
+
+function SingleView({ type }: { type: WidgetType }) {
+  const activeSymbol = useTerminal((s) => s.activeSymbol);
+  const widgets = useTerminal((s) => s.widgets);
+  const symbolAware = SYMBOL_AWARE.includes(type);
+  const storedWidget = widgets.find((w) => w.type === type);
+  const widget: WidgetInstance = storedWidget ?? { id: "view-" + type, type, linked: true };
+  const description: Record<WidgetType, string> = {
+    chart: "Price action, technical studies and volume",
+    quote: "Real-time and reference data for the selected instrument",
+    watchlist: "Track your selected instruments in one place",
+    news: "Headlines and market-moving developments",
+    heatmap: "Compare market performance at a glance",
+    screener: "Find instruments using market criteria",
+    crypto: "Digital assets and market performance",
+    macro: "Rates, indexes and macroeconomic indicators",
+    options: "Options chain and derivatives data",
+    portfolio: "Positions, exposure and performance",
+    ai: "Research and ask questions about markets",
+    calendar: "Upcoming economic releases and events",
+    insider: "Reported insider transactions",
+    tv: "Market video and live coverage",
+    recap: "A concise overview of current market activity",
+  };
+  return (
+    <section className={`single-view view-${type}`}>
+      <header className="view-heading">
+        <div className="view-title-group">
+          <div className="view-eyebrow">OPEN TERMINAL <span>/</span> {type.toUpperCase()}</div>
+          <h1>{TITLES[type]}</h1>
+          <p>{description[type]}</p>
+        </div>
+        <div className="view-context">
+          {symbolAware && <div className="context-symbol"><span className="context-label">SYMBOL</span><SymbolTag widget={widget} activeSymbol={activeSymbol}/></div>}
+          <div className="context-live"><span className="status-dot up-bg" /> DATA CONNECTION</div>
+        </div>
+      </header>
+      <div className="single-view-content">
+        <WidgetErrorBoundary name={TITLES[type]}><WidgetBody widget={widget} /></WidgetErrorBoundary>
+      </div>
+    </section>
+  );
 }
+
 export default function Workspace() {
- const widgets=useTerminal(s=>s.widgets),layout=useTerminal(s=>s.layout),setLayout=useTerminal(s=>s.setLayout),removeWidget=useTerminal(s=>s.removeWidget),toggleLinked=useTerminal(s=>s.toggleLinked),activeSymbol=useTerminal(s=>s.activeSymbol),activeTab=useTerminal(s=>s.activeTab),openTabs=useTerminal(s=>s.openTabs),setActiveTab=useTerminal(s=>s.setActiveTab),closeTab=useTerminal(s=>s.closeTab);
- const symbolAware=new Set(["quote","chart","news","options","insider"]);
- return <div className="workspace-shell">
- <div className="workspace-tabs" role="tablist" aria-label="Workspace tabs">
- <button role="tab" aria-selected={activeTab==="dashboard"} onClick={()=>setActiveTab("dashboard")} className={"workspace-tab dashboard-tab "+(activeTab==="dashboard"?"active":"")}><span className="tab-icon">▦</span> Overview</button>
- {openTabs.map(type=><div key={type} role="presentation" className={"workspace-tab-wrap "+(activeTab===type?"active":"")}><button role="tab" aria-selected={activeTab===type} onClick={()=>setActiveTab(type)} className={"workspace-tab "+(activeTab===type?"active":"")}><span className="tab-icon">{type==="chart"?"⌁":type==="quote"?"◉":type==="portfolio"?"▤":"▦"}</span>{TITLES[type]}</button><button className="workspace-tab-close" title={"Close "+TITLES[type]+" tab"} aria-label={"Close "+TITLES[type]+" tab"} onClick={()=>closeTab(type)}>×</button></div>)}
- <div className="workspace-tabs-spacer"/><span className="workspace-tab-hint">WORKSPACE</span></div>
- <div className="workspace-view" key={activeTab}>{activeTab==="dashboard"?<Grid className="layout" layout={layout} cols={12} rowHeight={34} margin={[8,8]} draggableHandle=".panel-title" onLayoutChange={l=>setLayout(l.map(({i,x,y,w,h})=>({i,x,y,w,h})))}>
- {widgets.map(w=><div key={w.id}><div className="terminal-panel"><div className="panel-title"><span>{TITLES[w.type]}{symbolAware.has(w.type)&&<SymbolTag widget={w} activeSymbol={activeSymbol}/>}</span><span className="flex gap-2 items-center">{symbolAware.has(w.type)&&<button title={w.linked?"Linked to active symbol (click to unlink)":"Unlinked (click to link)"} onMouseDown={e=>e.stopPropagation()} onClick={()=>toggleLinked(w.id)} className={w.linked?"text-[var(--amber)]":"dim"}>⛓</button>}<button onMouseDown={e=>e.stopPropagation()} onClick={()=>removeWidget(w.id)} className="dim hover:text-[var(--down)]" title="Remove widget from overview">✕</button></span></div><div className="flex-1 overflow-auto min-h-0"><WidgetErrorBoundary name={TITLES[w.type]}><WidgetBody widget={w}/></WidgetErrorBoundary></div></div></div>)}
- </Grid>:<SingleView type={activeTab}/>}</div></div>;
+  const widgets = useTerminal((s) => s.widgets);
+  const layout = useTerminal((s) => s.layout);
+  const setLayout = useTerminal((s) => s.setLayout);
+  const removeWidget = useTerminal((s) => s.removeWidget);
+  const toggleLinked = useTerminal((s) => s.toggleLinked);
+  const activeSymbol = useTerminal((s) => s.activeSymbol);
+  const activeTab = useTerminal((s) => s.activeTab);
+
+  if (activeTab !== "dashboard") return <SingleView type={activeTab} />;
+
+  return (
+    <section className="overview-view">
+      <header className="view-heading overview-heading">
+        <div className="view-title-group"><div className="view-eyebrow">OPEN TERMINAL <span>/</span> WORKSPACE</div><h1>Market overview</h1><p>Your watchlist, price action, headlines and macro data in one workspace.</p></div>
+        <div className="overview-badges"><span className="market-pill"><span className="status-dot up-bg"/> WORKSPACE</span><span className="market-pill">{widgets.length} PANELS</span></div>
+      </header>
+      <Grid className="layout overview-grid" layout={layout} cols={12} rowHeight={34} margin={[7, 7]} draggableHandle=".panel-title" onLayoutChange={(next) => setLayout(next.map(({ i, x, y, w, h }) => ({ i, x, y, w, h })))}>
+        {widgets.map((widget) => (
+          <div key={widget.id}>
+            <div className="terminal-panel">
+              <div className="panel-title">
+                <span>{TITLES[widget.type]}{SYMBOL_AWARE.includes(widget.type) && <SymbolTag widget={widget} activeSymbol={activeSymbol}/>}</span>
+                <span className="panel-actions">
+                  {SYMBOL_AWARE.includes(widget.type) && <button title={widget.linked ? "Linked to active symbol (click to unlink)" : "Unlinked (click to link)"} onMouseDown={(e) => e.stopPropagation()} onClick={() => toggleLinked(widget.id)} className={widget.linked ? "link-action selected" : "link-action"}>⛓</button>}
+                  <button onMouseDown={(e) => e.stopPropagation()} onClick={() => removeWidget(widget.id)} className="panel-close" title="Remove panel from overview">×</button>
+                </span>
+              </div>
+              <div className="panel-content"><WidgetErrorBoundary name={TITLES[widget.type]}><WidgetBody widget={widget}/></WidgetErrorBoundary></div>
+            </div>
+          </div>
+        ))}
+      </Grid>
+    </section>
+  );
 }
