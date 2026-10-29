@@ -5,6 +5,8 @@ import { useState } from "react";
 import { apiGet, fmt, fmtBig } from "../../lib/api";
 import { useWidgetSymbol, type WidgetInstance } from "../../store/terminal";
 
+import { usePreferences } from "../../store/preferences";
+
 type OptionRow = {
   strike: number | null; lastPrice: number | null; bid: number | null; ask: number | null;
   volume: number | null; openInterest: number | null; impliedVolatility?: number | null; inTheMoney: boolean;
@@ -15,13 +17,14 @@ type Chain = {
 };
 
 export default function OptionsWidget({ widget }: { widget: WidgetInstance }) {
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
   const symbol = useWidgetSymbol(widget);
   const [expiry, setExpiry] = useState<string | undefined>();
 
   const { data, error, isLoading } = useQuery({
     queryKey: ["options", symbol, expiry],
     queryFn: () => apiGet<Chain>(`/api/options/${encodeURIComponent(symbol)}${expiry ? `?expiry=${encodeURIComponent(expiry)}` : ""}`),
-    refetchInterval: 20_000,
+    refetchInterval: refreshSeconds * 1000,
     retry: 0,
   });
 
