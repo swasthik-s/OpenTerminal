@@ -1,8 +1,8 @@
-import type { SVGProps } from "react";
+import type { ReactNode, SVGProps } from "react";
 
 export type IconName = "sparkles" | "chart" | "star" | "newspaper" | "search" | "sliders" | "activity" | "wallet" | "settings" | "globe" | "arrow-up-right" | "refresh" | "check" | "plug" | "rss" | "shield" | "chevron-right" | "brain" | "calendar" | "x" | "external-link" | "panel-left" | "server" | "circle-help";
 
-const paths: Record<IconName, React.ReactNode> = {
+const paths: Record<IconName, ReactNode> = {
   sparkles: <><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2L12 3Z"/><path d="m19 14 1.2 2.8L23 18l-2.8 1.1L19 22l-1.1-2.9L15 18l2.9-1.2L19 14Z"/></>,
   chart: <><path d="M3 3v18h18"/><path d="m7 14 4-4 4 3 6-7"/></>,
   star: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>,
