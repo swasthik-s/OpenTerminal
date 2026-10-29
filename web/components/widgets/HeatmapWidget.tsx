@@ -6,16 +6,19 @@ import * as d3 from "d3";
 import { apiGet } from "../../lib/api";
 import { useTerminal } from "../../store/terminal";
 
+import { usePreferences } from "../../store/preferences";
+
 type Cell = { symbol: string; name: string | null; sector: string; marketCap: number | null; changePercent: number | null };
 
 export default function HeatmapWidget() {
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
   const ref = useRef<HTMLDivElement>(null);
   const setActiveSymbol = useTerminal((s) => s.setActiveSymbol);
   const [market, setMarket] = useState<"us" | "eu">("us");
   const { data, error } = useQuery({
     queryKey: ["heatmap", market],
     queryFn: () => apiGet<Cell[]>(`/api/heatmap?market=${market}`),
-    refetchInterval: 3_000,
+    refetchInterval: refreshSeconds * 1000,
   });
 
   useEffect(() => {
