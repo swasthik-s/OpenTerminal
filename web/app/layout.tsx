@@ -4,7 +4,7 @@ import Providers from "./providers";
 
 export const metadata: Metadata = {
   title: "OpenTerminal",
-  description: "Bloomberg-style financial terminal on free data sources",
+  description: "OpenTerminal — market data, charts, research, and portfolio tools in one workstation",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
