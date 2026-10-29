@@ -17,10 +17,6 @@ type IntegrationState = {
 
 function configuredStatus(): IntegrationState[] {
   const alpaca = Boolean(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY);
-  const ibkr = Boolean(process.env.IBKR_GATEWAY_URL && process.env.IBKR_ACCOUNT_ID);
-  const oanda = Boolean(process.env.OANDA_API_TOKEN && process.env.OANDA_ACCOUNT_ID);
-  const tradovate = Boolean(process.env.TRADOVATE_ACCESS_TOKEN);
-  const mt5 = Boolean(process.env.MT5_BRIDGE_URL && process.env.MT5_BRIDGE_TOKEN);
   const savedRss = Number((db.prepare("SELECT COUNT(*) AS count FROM rss_feeds WHERE enabled = 1").get() as {count:number}).count);
   const rss = Boolean(process.env.RSS_FEEDS) || savedRss > 0;
   const ai = Boolean(process.env.ANTHROPIC_API_KEY);
