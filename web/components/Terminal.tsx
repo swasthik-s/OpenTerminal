@@ -9,7 +9,7 @@ import { useTerminal } from "../store/terminal";
 
 export default function Terminal() {
   const setCommandOpen = useTerminal((s) => s.setCommandOpen);
-  const addWidget = useTerminal((s) => s.addWidget);
+  const openTab = useTerminal((s) => s.openTab);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -20,15 +20,15 @@ export default function Terminal() {
       }
       if (e.altKey) {
         const map: Record<string, () => void> = {
-          "1": () => addWidget("chart"),
-          "2": () => addWidget("quote"),
-          "3": () => addWidget("news"),
-          "4": () => addWidget("screener"),
-          "5": () => addWidget("heatmap"),
-          "6": () => addWidget("crypto"),
-          "7": () => addWidget("options"),
-          "8": () => addWidget("portfolio"),
-          "9": () => addWidget("ai"),
+          "1": () => openTab("chart"),
+          "2": () => openTab("quote"),
+          "3": () => openTab("news"),
+          "4": () => openTab("screener"),
+          "5": () => openTab("heatmap"),
+          "6": () => openTab("crypto"),
+          "7": () => openTab("options"),
+          "8": () => openTab("portfolio"),
+          "9": () => openTab("ai"),
         };
         const fn = map[e.key];
         if (fn) {
@@ -39,7 +39,7 @@ export default function Terminal() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setCommandOpen, addWidget]);
+  }, [setCommandOpen, openTab]);
 
   return (
     <div className="flex flex-col h-screen">
