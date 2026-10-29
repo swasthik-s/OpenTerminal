@@ -11,6 +11,7 @@
   "drawdownType": "trailing",
   "dailyResetTimezone": "Europe/Prague",
   "dailyLossBasis": "equity-incl-floating",
+  "bestDayRulePct": 50,
   "newsRestrictionMinutes": 0,
   "eaAllowed": true,
   "eaRestrictions": [
