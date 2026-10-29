@@ -6,10 +6,17 @@ import Sidebar from "./Sidebar";
 import Workspace from "./Workspace";
 import CommandPalette from "./CommandPalette";
 import { useTerminal } from "../store/terminal";
+import { usePreferences } from "../store/preferences";
 
 export default function Terminal() {
   const setCommandOpen = useTerminal((s) => s.setCommandOpen);
   const setActiveTab = useTerminal((s) => s.setActiveTab);
+  const fontScale = usePreferences((s) => s.fontScale);
+  const density = usePreferences((s) => s.density);
+  const animations = usePreferences((s) => s.animations);
+  const startView = usePreferences((s) => s.startView);
+
+  useEffect(() => { setActiveTab(startView); }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -35,7 +42,7 @@ export default function Terminal() {
   }, [setCommandOpen, setActiveTab]);
 
   return (
-    <div className="terminal-app">
+    <div className="terminal-app" data-density={density} data-motion={animations ? "on" : "off"} style={{ "--font-scale": fontScale } as React.CSSProperties}>
       <TopBar />
       <div className="terminal-body">
         <Sidebar />
