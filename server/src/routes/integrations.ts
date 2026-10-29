@@ -54,8 +54,9 @@ async function validateFeedUrl(value: unknown): Promise<URL> {
   try { url = new URL(value); } catch { throw new Error("Enter a valid HTTPS RSS or Atom URL."); }
   if (url.protocol !== "https:" || url.username || url.password || url.port && url.port !== "443") throw new Error("Only public HTTPS feed URLs on the default port are allowed.");
   if (url.hostname === "localhost" || url.hostname.endsWith(".local") || url.hostname.endsWith(".internal")) throw new Error("Local or internal hosts are not allowed.");
-  const ipType = isIP(url.hostname);
-  const addresses = ipType ? [{ address: url.hostname }] : await lookup(url.hostname, { all: true, verbatim: true });
+  const hostname = url.hostname.replace(/^\[|\]$/g, "");
+  const ipType = isIP(hostname);
+  const addresses = ipType ? [{ address: hostname }] : await lookup(hostname, { all: true, verbatim: true });
   if (!addresses.length || addresses.some((entry) => !isPublicIp(entry.address))) throw new Error("Feed host resolves to a private or reserved address.");
   return url;
 }
