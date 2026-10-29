@@ -1,5 +1,5 @@
 import { Router } from "express";
-import Anthropic from "@anthropic-ai/sdk";
+import { Anthropic } from "@anthropic-ai/sdk";
 
 export const aiRouter = Router();
 
@@ -37,8 +37,7 @@ aiRouter.post("/chat", async (req, res) => {
       return res.json({ text: "The assistant declined to answer this request." });
     }
     const text = response.content
-      .filter((b) => b.type === "text")
-      .map((b) => ("text" in b ? b.text : ""))
+      .flatMap((block) => block.type === "text" ? [block.text] : [])
       .join("");
     res.json({ text });
   } catch (err) {
