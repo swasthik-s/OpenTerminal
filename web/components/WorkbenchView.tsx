@@ -40,8 +40,7 @@ export default function WorkbenchView({ view }: { view: View }) {
     `Entry: ${entry}`,
     `Stop loss: ${stop}`,
     `Risk per trade: ${risk}% · Target: ${rr}R`,
-  ].join("
-"), [strategyName, market, timeframe, trend, entry, stop, risk, rr]);
+  ].join("\n"), [strategyName, market, timeframe, trend, entry, stop, risk, rr]);
 
   if (view === "settings") return (
     <section className="workbench-page">
