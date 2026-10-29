@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { apiGet } from "../lib/api";
 import { useTerminal } from "../store/terminal";
+import { usePreferences } from "../store/preferences";
+import AppIcon from "./AppIcon";
 
 type Status = {
   ok: boolean;
@@ -38,10 +40,11 @@ function marketStateNY(): { label: string; open: boolean } {
 export default function TopBar() {
   const setCommandOpen = useTerminal((s) => s.setCommandOpen);
   const activeSymbol = useTerminal((s) => s.activeSymbol);
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
   const { data: status } = useQuery({
     queryKey: ["status"],
     queryFn: () => apiGet<Status>("/api/status"),
-    refetchInterval: 30_000,
+    refetchInterval: refreshSeconds * 1000,
   });
   const market = marketStateNY();
   const healthy = status?.providers.filter((p) => p.ok > 0) ?? [];
@@ -62,7 +65,7 @@ export default function TopBar() {
         <Clock tz="Asia/Tokyo" label="TYO" />
       </div>
       <button className="global-search" onClick={() => setCommandOpen(true)}>
-        <span className="search-icon">⌕</span>
+        <span className="search-icon"><AppIcon name="search" size={18}/></span>
         <span className="search-copy"><strong>{activeSymbol}</strong><span>Search symbol or command…</span></span>
         <kbd>⌘ K</kbd>
       </button>
