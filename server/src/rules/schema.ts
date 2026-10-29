@@ -2,8 +2,7 @@ import { z } from "zod";
 
 /**
  * Prop-firm rules are data, not application constants.
- * Source URL and verification timestamp must be explicit. This schema validates
- * structure, not truth; human review of official program terms is still required.
+ * Schema validation checks structure only; official terms still require review.
  */
 export const PropRuleSchema = z.object({
   id: z.string().min(1).max(80).regex(/^[a-z0-9][a-z0-9-]*$/),
@@ -20,6 +19,8 @@ export const PropRuleSchema = z.object({
   drawdownType: z.enum(["static", "trailing"]),
   dailyResetTimezone: z.string().min(1).max(80),
   dailyLossBasis: z.enum(["balance", "equity-incl-floating"]),
+  /** Optional consistency objective, e.g. FTMO 1-Step Best Day Rule. */
+  bestDayRulePct: z.number().positive().max(100).finite().optional(),
   newsRestrictionMinutes: z.number().int().min(0).max(1440),
   eaAllowed: z.boolean(),
   eaRestrictions: z.array(z.string().max(300)).max(30),
