@@ -1,4 +1,8 @@
 import { Router } from "express";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
+import { XMLParser } from "fast-xml-parser";
+import { db } from "../db.js";
 
 export const integrationsRouter = Router();
 
@@ -16,7 +20,7 @@ function configuredStatus(): IntegrationState[] {
   const oanda = Boolean(process.env.OANDA_API_TOKEN && process.env.OANDA_ACCOUNT_ID);
   const tradovate = Boolean(process.env.TRADOVATE_ACCESS_TOKEN);
   const mt5 = Boolean(process.env.MT5_BRIDGE_URL && process.env.MT5_BRIDGE_TOKEN);
-  const rss = Boolean(process.env.RSS_FEEDS);
+  const savedRss = Number((db.prepare("SELECT COUNT(*) AS count FROM rss_feeds WHERE enabled = 1").get() as {count:number}).count);\n  const rss = Boolean(process.env.RSS_FEEDS) || savedRss > 0;
   const ai = Boolean(process.env.ANTHROPIC_API_KEY);
   return [
     { id: "ai", label: "Anthropic AI", configured: ai, mode: ai ? "ready-to-test" : "not-configured", detail: ai ? "Server API key is present; request health is checked when used." : "Set ANTHROPIC_API_KEY on the API server." },
@@ -29,6 +33,61 @@ function configuredStatus(): IntegrationState[] {
     { id: "polymarket", label: "Polymarket public data", configured: true, mode: "ready-to-test", detail: "Public Gamma API data; no wallet permissions are needed to read markets." },
   ];
 }
+
+
+function isPublicIp(ip: string): boolean {
+  if (ip.includes(":")) {
+    const lower = ip.toLowerCase();
+    return lower !== "::1" && lower !== "::" && !lower.startsWith("fc") && !lower.startsWith("fd") && !lower.startsWith("fe80:") && !lower.startsWith("::ffff:127.") && !lower.startsWith("::ffff:10.") && !lower.startsWith("::ffff:192.168.");
+  }
+  const parts = ip.split(".").map(Number);
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  const [a,b] = parts;
+  return !(a === 0 || a === 10 || a === 127 || a >= 224 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || (a === 198 && (b === 18 || b === 19));
+}
+
+async function validateFeedUrl(value: unknown): Promise<URL> {
+  if (typeof value !== "string" || value.length > 2048) throw new Error("Enter a valid HTTPS RSS or Atom URL.");
+  let url: URL;
+  try { url = new URL(value); } catch { throw new Error("Enter a valid HTTPS RSS or Atom URL."); }
+  if (url.protocol !== "https:" || url.username || url.password || url.port && url.port !== "443") throw new Error("Only public HTTPS feed URLs on the default port are allowed.");
+  if (url.hostname === "localhost" || url.hostname.endsWith(".local") || url.hostname.endsWith(".internal")) throw new Error("Local or internal hosts are not allowed.");
+  const ipType = isIP(url.hostname);
+  const addresses = ipType ? [{ address: url.hostname }] : await lookup(url.hostname, { all: true, verbatim: true });
+  if (!addresses.length || addresses.some((entry) => !isPublicIp(entry.address))) throw new Error("Feed host resolves to a private or reserved address.");
+  return url;
+}
+
+integrationsRouter.get("/rss-feeds", (_req, res) => {
+  const feeds = db.prepare("SELECT id, url, label, enabled, created_at AS createdAt FROM rss_feeds ORDER BY id DESC").all();
+  res.json(feeds);
+});
+
+integrationsRouter.post("/rss-feeds", async (req, res) => {
+  try {
+    const url = await validateFeedUrl(req.body?.url);
+    const response = await fetch(url, { headers: { "User-Agent": "OpenTerminal/1.0" }, signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return res.status(400).json({ error: `Feed returned HTTP ${response.status}.` });
+    const xml = await response.text();
+    if (xml.length > 2_000_000) return res.status(400).json({ error: "Feed response is too large (2 MB maximum)." });
+    const parsed = new XMLParser({ ignoreAttributes: false }).parse(xml);
+    if (!parsed?.rss?.channel && !parsed?.feed && !parsed?.channel) return res.status(400).json({ error: "URL responded, but the content does not look like RSS or Atom XML." });
+    const label = typeof req.body?.label === "string" && req.body.label.trim() ? req.body.label.trim().slice(0, 80) : url.hostname;
+    const result = db.prepare("INSERT INTO rss_feeds (url, label) VALUES (?, ?) ON CONFLICT(url) DO UPDATE SET label = excluded.label, enabled = 1").run(url.toString(), label);
+    const feed = db.prepare("SELECT id, url, label, enabled, created_at AS createdAt FROM rss_feeds WHERE url = ?").get(url.toString());
+    res.status(201).json({ feed, message: "Feed validated and saved." });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Could not validate feed." });
+  }
+});
+
+integrationsRouter.delete("/rss-feeds/:id", (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: "Invalid feed ID." });
+  const result = db.prepare("DELETE FROM rss_feeds WHERE id = ?").run(id);
+  if (!result.changes) return res.status(404).json({ error: "Feed not found." });
+  res.status(204).end();
+});
 
 integrationsRouter.get("/status", (_req, res) => {
   res.json({ checkedAt: new Date().toISOString(), integrations: configuredStatus() });
