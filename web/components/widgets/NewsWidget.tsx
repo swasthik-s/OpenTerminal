@@ -6,12 +6,14 @@ import { apiGet, apiPost } from "../../lib/api";
 import { isSafeHttpUrl } from "../../lib/links";
 import { useWidgetSymbol, type WidgetInstance } from "../../store/terminal";
 import AppIcon from "../AppIcon";
+import { usePreferences } from "../../store/preferences";
 
 type NewsItem = { title: string; link: string; publisher: string; publishedAt: string | null };
 type AiState = { loading: boolean; text?: string; error?: string };
 
 export default function NewsWidget({ widget }: { widget: WidgetInstance }) {
   const symbol = useWidgetSymbol(widget);
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
   const [mode, setMode] = useState<"symbol" | "global">("symbol");
   const [summaries, setSummaries] = useState<Record<string, AiState>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export default function NewsWidget({ widget }: { widget: WidgetInstance }) {
   const { data = [], isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["news", mode, symbol],
     queryFn: () => apiGet<NewsItem[]>(mode === "symbol" ? `/api/news?symbol=${encodeURIComponent(symbol)}` : "/api/news"),
-    refetchInterval: 30_000,
+    refetchInterval: refreshSeconds * 1000,
   });
 
   const askAI = async (item: NewsItem, index: number) => {
