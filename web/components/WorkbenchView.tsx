@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiGet, apiPost } from "../lib/api";
+import { apiGet, apiPost, apiDelete } from "../lib/api";
 import { usePreferences } from "../store/preferences";
 import AppIcon from "./AppIcon";
 
 type View = "settings" | "strategy" | "backtest" | "polymarket";
 type Integration = { id: string; label: string; configured: boolean; mode: string; detail: string };
+type RssFeed = { id:number; url:string; label:string; enabled:number; createdAt:string };
 type PolyMarket = { question?: string; slug?: string; volume24hr?: number | string; volume_24hr?: number | string; volume?: number | string; liquidity?: number | string; outcomePrices?: string; outcome_prices?: string; active?: boolean; closed?: boolean; endDate?: string; end_date?: string };
 
 const BROKERS = [
@@ -35,6 +36,10 @@ export default function WorkbenchView({ view }: { view: View }) {
   const [engineNotice, setEngineNotice] = useState("");
   const [saved, setSaved] = useState(false);
   const [polySearch, setPolySearch] = useState("");
+  const [rssUrl, setRssUrl] = useState("");
+  const [rssLabel, setRssLabel] = useState("");
+  const [rssNotice, setRssNotice] = useState("");
+  const [rssBusy, setRssBusy] = useState(false);
   const [alpacaTest, setAlpacaTest] = useState<{loading:boolean; message:string; ok?:boolean}>({loading:false,message:""});
   const fontScale = usePreferences((s) => s.fontScale);
   const setFontScale = usePreferences((s) => s.setFontScale);
@@ -48,6 +53,9 @@ export default function WorkbenchView({ view }: { view: View }) {
   const setStartView = usePreferences((s) => s.setStartView);
   const resetPreferences = usePreferences((s) => s.resetPreferences);
   const integrationsQuery = useQuery({ queryKey: ["integration-status"], queryFn: () => apiGet<{checkedAt:string; integrations:Integration[]}>("/api/integrations/status"), enabled: view === "settings", refetchInterval: refreshSeconds * 1000 });
+  const rssQuery = useQuery({ queryKey: ["rss-feeds"], queryFn: () => apiGet<RssFeed[]>("/api/integrations/rss-feeds"), enabled: view === "settings" });
+  const addRssFeed = async (event: React.FormEvent) => { event.preventDefault(); if (!rssUrl.trim()) return; setRssBusy(true); setRssNotice(""); try { await apiPost("/api/integrations/rss-feeds", { url: rssUrl.trim(), label: rssLabel.trim() || undefined }); setRssUrl(""); setRssLabel(""); setRssNotice("Feed validated and saved. It will appear in news results."); await Promise.all([rssQuery.refetch(), integrationsQuery.refetch()]); } catch (error) { setRssNotice((error as Error).message); } finally { setRssBusy(false); } };
+  const removeRssFeed = async (id:number) => { try { await apiDelete("/api/integrations/rss-feeds/" + id); await Promise.all([rssQuery.refetch(), integrationsQuery.refetch()]); setRssNotice("RSS feed removed."); } catch (error) { setRssNotice((error as Error).message); } };
   const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: () => apiGet<{fetchedAt:string; count:number; markets:PolyMarket[]}>("/api/polymarket/markets"), enabled: view === "polymarket", refetchInterval: 60_000, staleTime: 30_000 });
   const runAlpacaTest = async () => { setAlpacaTest({loading:true,message:"Checking server-side Alpaca credentials…"}); try { const result = await apiPost<{ok:boolean;paper:boolean;account?:{id?:string;status?:string;currency?:string;tradingBlocked?:boolean};error?:string}>("/api/integrations/alpaca/test",{}); setAlpacaTest({loading:false,ok:result.ok,message:result.ok ? "Account handshake succeeded · " + (result.paper ? "PAPER" : "LIVE") + " · " + (result.account?.status ?? "status unknown") + " · " + (result.account?.currency ?? "currency unknown") : "Connection failed"}); } catch (error) { setAlpacaTest({loading:false,ok:false,message:(error as Error).message}); } };
 
@@ -84,6 +92,14 @@ export default function WorkbenchView({ view }: { view: View }) {
           <div className="integration-list">{integrations.map((item)=> <article className="integration-card" key={item.id}><div className="integration-icon"><AppIcon name={item.id==="ai"?"brain":item.id==="rss"?"rss":item.id==="polymarket"?"globe":item.id==="alpaca"?"activity":"plug"} size={19}/></div><div className="integration-copy"><strong>{item.label}</strong><p>{item.detail}</p></div><span className={"state-badge " + (item.configured ? "state-warn" : "state-off")}>{item.configured ? (item.id==="polymarket" ? "PUBLIC DATA" : "CONFIGURED") : "NOT CONFIGURED"}</span>{item.id==="alpaca" && item.configured && <button className="workbench-button" disabled={alpacaTest.loading} onClick={runAlpacaTest}>{alpacaTest.loading?"Testing…":"Test account"}</button>}</article>)}</div>
           {alpacaTest.message && <div className="notice-line"><span>{alpacaTest.loading?"TESTING":alpacaTest.ok?"CONNECTED":"FAILED"}</span>{alpacaTest.message}</div>}
           <div className="security-note"><span className="security-icon"><AppIcon name="shield" size={22}/></span><div><strong>Secrets stay on the API server</strong><p>Set provider credentials as environment variables in the server deployment. Never paste private broker keys into a frontend form. Use read-only keys by default; live order execution must be separately permissioned and tested.</p></div></div>
+        </div>
+        <div className="settings-section">
+          <div className="section-heading"><div><h3><AppIcon name="rss" size={16}/> RSS / Atom feeds</h3><p>Add trusted HTTPS feeds; the API validates the URL and parses the feed before saving it.</p></div><span className="state-badge state-off">{rssQuery.data?.length ?? 0} SAVED</span></div>
+          <form className="rss-add-form" onSubmit={addRssFeed}><label>Feed URL<input type="url" required value={rssUrl} onChange={e=>setRssUrl(e.target.value)} placeholder="https://example.com/market-news.xml"/></label><label>Display name<input value={rssLabel} onChange={e=>setRssLabel(e.target.value)} placeholder="Optional publisher name"/></label><button className="workbench-button primary" type="submit" disabled={rssBusy}>{rssBusy?"Validating…":"Validate & add feed"}</button></form>
+          {rssNotice && <div className="notice-line"><span>RSS</span>{rssNotice}</div>}
+          {rssQuery.error && <div className="notice-line"><span>ERROR</span>{(rssQuery.error as Error).message}</div>}
+          <div className="rss-feed-list">{(rssQuery.data ?? []).map(feed=><article className="rss-feed-row" key={feed.id}><div className="rss-feed-icon"><AppIcon name="rss" size={16}/></div><div className="rss-feed-copy"><strong>{feed.label}</strong><span>{feed.url}</span></div><span className="state-badge state-warn">SAVED</span><button className="workbench-button" onClick={()=>removeRssFeed(feed.id)}><AppIcon name="x" size={13}/> Remove</button></article>)}</div>
+          <p className="rss-security-note">Only HTTPS URLs on public hosts are accepted. Feed content is treated as untrusted data and is never executed.</p>
         </div>
         <div className="settings-section">
           <div className="section-heading"><div><h3><AppIcon name="server" size={16}/> Connection setup</h3><p>Server-side variables used by the current integration adapters.</p></div></div>
