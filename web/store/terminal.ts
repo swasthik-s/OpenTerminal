@@ -37,12 +37,10 @@ type TerminalState = {
   watchlist: string[];
   commandOpen: boolean;
   activeTab: "dashboard" | WidgetType;
-  openTabs: WidgetType[];
   setActiveSymbol: (s: string) => void;
   setCommandOpen: (open: boolean) => void;
   openTab: (type: WidgetType) => void;
   setActiveTab: (tab: "dashboard" | WidgetType) => void;
-  closeTab: (type: WidgetType) => void;
   addWidget: (type: WidgetType, symbol?: string) => void;
   removeWidget: (id: string) => void;
   setWidgetSymbol: (id: string, symbol: string) => void;
@@ -96,15 +94,13 @@ export const useTerminal = create<TerminalState>()(
       watchlist: ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "GOOGL", "META", "SPY"],
       commandOpen: false,
       activeTab: "chart",
-      openTabs: ["chart", "quote", "watchlist", "news", "macro"],
       setActiveSymbol: (s) => {
         const sym = normalizeSymbol(s);
         if (sym) set({ activeSymbol: sym });
       },
       setCommandOpen: (open) => set({ commandOpen: open }),
-      openTab: (type) => set((st) => ({ openTabs: st.openTabs.includes(type) ? st.openTabs : [...st.openTabs, type], activeTab: type })),
+      openTab: (type) => set({ activeTab: type }),
       setActiveTab: (tab) => set({ activeTab: tab }),
-      closeTab: (type) => set((st) => { const openTabs = st.openTabs.filter((item) => item !== type); return { openTabs, activeTab: st.activeTab === type ? (openTabs[openTabs.length - 1] ?? "dashboard") : st.activeTab }; }),
       addWidget: (type, symbol) =>
         set((st) => {
           const id = `w-${type}-${Date.now()}`;
@@ -140,9 +136,9 @@ export const useTerminal = create<TerminalState>()(
         }));
       },
       removeFromWatchlist: (s) => set((st) => ({ watchlist: st.watchlist.filter((x) => x !== s) })),
-      resetWorkspace: () => set({ widgets: DEFAULT_WIDGETS, layout: DEFAULT_LAYOUT, openTabs: ["chart", "quote", "watchlist", "news", "macro"], activeTab: "chart" }),
+      resetWorkspace: () => set({ widgets: DEFAULT_WIDGETS, layout: DEFAULT_LAYOUT, activeTab: "dashboard" }),
     }),
-    { name: "openterminal-workspace", version: 2, migrate: (persistedState) => { const state = persistedState as Partial<TerminalState>; const widgetTypes = [...new Set((state.widgets ?? DEFAULT_WIDGETS).map((widget) => widget.type))]; const openTabs = widgetTypes.length ? widgetTypes : ["chart", "quote", "watchlist", "news", "macro"]; return { ...state, openTabs, activeTab: openTabs.includes("chart") ? "chart" : (openTabs[0] ?? "dashboard") } as TerminalState; } }
+    { name: "openterminal-workspace", version: 3, migrate: (persistedState) => { const state = persistedState as Partial<TerminalState>; return { ...state, widgets: DEFAULT_WIDGETS, layout: DEFAULT_LAYOUT, activeTab: "dashboard" } as TerminalState; } }
   )
 );
 
