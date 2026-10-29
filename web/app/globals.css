@@ -542,3 +542,13 @@ table.data-table tbody tr:hover { background:#111; }
   .broker-grid,.backtest-config,.poly-features { grid-template-columns:1fr; }.wide-field { grid-column:auto; }.integration-row { align-items:flex-start; flex-wrap:wrap; }
   .workbench-page { padding:20px 14px 35px; }.workbench-intro h2 { font-size:21px; }
 }
+
+
+.poly-table-wrap { margin-top:16px; border:1px solid #242424; overflow:auto; }
+.poly-table { min-width:760px; }
+.poly-table th { position:sticky; top:0; z-index:1; }
+.poly-table td { padding:12px 10px !important; }
+.poly-question { max-width:440px; min-width:300px; white-space:normal !important; text-align:left !important; color:#ddd; line-height:1.6; }
+.poly-table a { font-size:9px; white-space:nowrap; text-decoration:none; }
+.poly-table a:hover { text-decoration:underline; }
+.poly-disclaimer { margin-top:13px; color:#656565; font-size:9px; line-height:1.7; }
