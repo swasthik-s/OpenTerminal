@@ -62,10 +62,10 @@ export async function topNews(query = "stock market"): Promise<NewsItem[]> {
 }
 
 /** Merge, de-duplicate by normalized title, newest first. */
-export function dedupe(lists: NewsItem[][]): NewsItem[] {
+export function dedupe(items: NewsItem[]): NewsItem[] {
   const seen = new Set<string>();
   const out: NewsItem[] = [];
-  for (const item of lists.flat()) {
+  for (const item of items) {
     const key = item.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 80);
     if (seen.has(key)) continue;
     seen.add(key);
