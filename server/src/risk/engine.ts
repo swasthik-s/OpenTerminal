@@ -10,6 +10,10 @@ export type RiskInput = {
   floatingPnl: number;
   /** Current day's costs not already reflected in dailyClosedPnl/floatingPnl. */
   additionalCosts?: number;
+  /** Balance captured at the firm's daily reset (required for accurate daily limit). */
+  dailyResetBalance?: number;
+  /** Highest completed end-of-day balance since account start (required for trailing loss). */
+  highestEndOfDayBalance?: number;
   /** Current phase's closed profit, calculated using the official accounting rule. */
   phaseClosedProfit: number;
   phaseIndex?: number;
@@ -22,10 +26,12 @@ export type RiskStatus = {
   accountSize: number;
   dailyLossUsed: number;
   dailyLossLimit: number;
+  dailyLossLimitEquityFloor: number;
   dailyLossUsedPct: number;
   dailyHeadroom: number;
   totalLossUsed: number;
   totalLossLimit: number;
+  totalLossEquityFloor: number;
   totalLossUsedPct: number;
   totalHeadroom: number;
   phaseProfitTarget: number;
@@ -49,12 +55,11 @@ function assertFiniteNonNegative(name: string, value: number): void {
 }
 
 /**
- * Monitoring-only calculation. It cannot enable trading or execute orders.
- *
- * Important: this is a preliminary absolute-P/L calculator, not a final replica
- * of any firm's rule. Daily limits tied to a midnight balance/equity baseline,
- * end-of-day trailing drawdown, consistency rules, profitable-day rules, and
- * other firm-specific semantics require additional inputs and implementations.
+ * Monitoring-only risk calculation. It never enables trading or executes orders.
+ * Trailing rules use a daily-reset balance and a highest completed end-of-day
+ * balance. These must come from a reliable broker/EA feed; never estimate them
+ * from the current balance. This is still not a complete substitute for firm-side
+ * accounting or an EA-side Guardian.
  */
 export function calculateRiskStatus(
   rule: PropRule,
@@ -70,6 +75,8 @@ export function calculateRiskStatus(
     dailyClosedPnl: input.dailyClosedPnl,
     floatingPnl: input.floatingPnl,
     additionalCosts: input.additionalCosts ?? 0,
+    dailyResetBalance: input.dailyResetBalance ?? 0,
+    highestEndOfDayBalance: input.highestEndOfDayBalance ?? 0,
     softStopAtPct: buffers.softStopAtPct,
     hardStopAtPct: buffers.hardStopAtPct,
     overallGuardAtPct: buffers.overallGuardAtPct,
@@ -88,8 +95,16 @@ export function calculateRiskStatus(
   if (!phase) throw new RangeError("phaseIndex does not exist in the rule file");
 
   if (rule.drawdownType === "trailing") {
-    throw new Error("Trailing drawdown requires a verified high-water-mark implementation");
+    if (input.dailyResetBalance === undefined || input.highestEndOfDayBalance === undefined) {
+      throw new Error("Trailing rule requires dailyResetBalance and highestEndOfDayBalance from the EA feed");
+    }
+    assertFiniteNonNegative("dailyResetBalance", input.dailyResetBalance);
+    assertFiniteNonNegative("highestEndOfDayBalance", input.highestEndOfDayBalance);
+    if (input.highestEndOfDayBalance < input.startingBalance) {
+      throw new RangeError("highestEndOfDayBalance cannot be below startingBalance");
+    }
   }
+
   for (const [name, value] of Object.entries(buffers)) {
     if (!(value > 0 && value < 100)) {
       throw new RangeError(`${name} must be greater than 0 and less than 100`);
@@ -100,13 +115,22 @@ export function calculateRiskStatus(
   }
 
   const dailyLossLimit = rule.accountSize * rule.maxDailyLossPct / 100;
+  const dailyLossLimitEquityFloor = rule.drawdownType === "trailing"
+    ? input.dailyResetBalance! - dailyLossLimit
+    : input.startingBalance - dailyLossLimit;
   const dailyNetPnl = input.dailyClosedPnl + input.floatingPnl - (input.additionalCosts ?? 0);
-  const dailyLossUsed = Math.max(0, -dailyNetPnl);
+  const dailyLossUsed = rule.drawdownType === "trailing"
+    ? Math.max(0, dailyLossLimitEquityFloor - input.equity)
+    : Math.max(0, -dailyNetPnl);
   const dailyLossUsedPct = dailyLossLimit > 0 ? dailyLossUsed / dailyLossLimit * 100 : 100;
   const dailyHeadroom = Math.max(0, dailyLossLimit - dailyLossUsed);
 
   const totalLossLimit = rule.accountSize * rule.maxTotalLossPct / 100;
-  const totalLossUsed = Math.max(0, input.startingBalance - input.equity);
+  const totalLossReference = rule.drawdownType === "trailing"
+    ? Math.max(input.startingBalance, input.highestEndOfDayBalance!)
+    : input.startingBalance;
+  const totalLossEquityFloor = totalLossReference - totalLossLimit;
+  const totalLossUsed = Math.max(0, totalLossEquityFloor - input.equity);
   const totalLossUsedPct = totalLossLimit > 0 ? totalLossUsed / totalLossLimit * 100 : 100;
   const totalHeadroom = Math.max(0, totalLossLimit - totalLossUsed);
 
@@ -116,7 +140,7 @@ export function calculateRiskStatus(
     : 100;
 
   const reasons: string[] = [
-    "Monitoring only: live trading is disabled until official program semantics and the EA Guardian are implemented and verified.",
+    "Monitoring only: live trading is disabled until MT5 ingestion, firm-specific accounting, and the EA Guardian are verified.",
   ];
   const dailySoftStop = dailyLossUsedPct >= buffers.softStopAtPct;
   const dailyHardStop = dailyLossUsedPct >= buffers.hardStopAtPct;
@@ -124,18 +148,20 @@ export function calculateRiskStatus(
   if (dailySoftStop) reasons.push("Daily soft-stop threshold reached.");
   if (dailyHardStop) reasons.push("Daily hard-stop threshold reached.");
   if (overallDrawdownGuard) reasons.push("Overall drawdown guard threshold reached.");
-  if (dailyLossUsed >= dailyLossLimit) reasons.push("Configured daily-loss amount reached or exceeded.");
-  if (totalLossUsed >= totalLossLimit) reasons.push("Configured overall-loss amount reached or exceeded.");
+  if (input.equity <= dailyLossLimitEquityFloor) reasons.push("Configured daily equity floor reached or breached.");
+  if (input.equity <= totalLossEquityFloor) reasons.push("Configured overall equity floor reached or breached.");
 
   return {
     eligibleForLiveUse: false,
     accountSize: rule.accountSize,
     dailyLossUsed,
     dailyLossLimit,
+    dailyLossLimitEquityFloor,
     dailyLossUsedPct,
     dailyHeadroom,
     totalLossUsed,
     totalLossLimit,
+    totalLossEquityFloor,
     totalLossUsedPct,
     totalHeadroom,
     phaseProfitTarget,
