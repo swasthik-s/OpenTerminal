@@ -1,0 +1,21 @@
+{
+  "id": "ftmo-1step-100k",
+  "firm": "FTMO",
+  "program": "1-Step Challenge",
+  "accountSize": 100000,
+  "phases": [
+    { "name": "Challenge", "profitTargetPct": 10, "minTradingDays": 0 }
+  ],
+  "maxDailyLossPct": 3,
+  "maxTotalLossPct": 10,
+  "drawdownType": "trailing",
+  "dailyResetTimezone": "Europe/Prague",
+  "dailyLossBasis": "equity-incl-floating",
+  "newsRestrictionMinutes": 0,
+  "eaAllowed": true,
+  "eaRestrictions": [
+    "Confirm current official terms for EA use, prohibited strategies, and any instrument-specific restrictions before live use"
+  ],
+  "sourceUrl": "https://ftmo.com/en/trading-objectives/",
+  "lastVerified": "2026-10-29"
+}
