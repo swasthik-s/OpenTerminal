@@ -93,7 +93,7 @@ export const useTerminal = create<TerminalState>()(
       layout: DEFAULT_LAYOUT,
       watchlist: ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "GOOGL", "META", "SPY"],
       commandOpen: false,
-      activeTab: "chart",
+      activeTab: "dashboard",
       setActiveSymbol: (s) => {
         const sym = normalizeSymbol(s);
         if (sym) set({ activeSymbol: sym });
