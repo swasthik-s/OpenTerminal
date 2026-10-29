@@ -2,9 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { apiGet, apiPost } from "../lib/api";
+import { usePreferences } from "../store/preferences";
+import AppIcon from "./AppIcon";
 
 type View = "settings" | "strategy" | "backtest" | "polymarket";
-type PolyMarket = { question?: string; slug?: string; volume24hr?: number | string; volume?: number | string; liquidity?: number | string; outcomePrices?: string; active?: boolean; closed?: boolean; endDate?: string };
+type PolyMarket = { question?: string; slug?: string; volume24hr?: number | string; volume_24hr?: number | string; volume?: number | string; liquidity?: number | string; outcomePrices?: string; outcome_prices?: string; active?: boolean; closed?: boolean; endDate?: string; end_date?: string };
 
 const BROKERS = [
   { name: "Alpaca", detail: "Stocks, ETFs & paper trading", method: "API key / OAuth" },
@@ -30,6 +33,21 @@ export default function WorkbenchView({ view }: { view: View }) {
   const [dateTo, setDateTo] = useState("2026-10-29");
   const [engineNotice, setEngineNotice] = useState("");
   const [saved, setSaved] = useState(false);
+  const [alpacaTest, setAlpacaTest] = useState<{loading:boolean; message:string; ok?:boolean}>({loading:false,message:""});
+  const fontScale = usePreferences((s) => s.fontScale);
+  const setFontScale = usePreferences((s) => s.setFontScale);
+  const density = usePreferences((s) => s.density);
+  const setDensity = usePreferences((s) => s.setDensity);
+  const animations = usePreferences((s) => s.animations);
+  const setAnimations = usePreferences((s) => s.setAnimations);
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
+  const setRefreshSeconds = usePreferences((s) => s.setRefreshSeconds);
+  const startView = usePreferences((s) => s.startView);
+  const setStartView = usePreferences((s) => s.setStartView);
+  const resetPreferences = usePreferences((s) => s.resetPreferences);
+  const integrationsQuery = useQuery({ queryKey: ["integration-status"], queryFn: () => apiGet<{checkedAt:string; integrations:Integration[]}>("/api/integrations/status"), enabled: view === "settings", refetchInterval: 60_000 });
+  const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: () => apiGet<{fetchedAt:string; count:number; markets:PolyMarket[]}>("/api/polymarket/markets"), enabled: view === "polymarket", refetchInterval: 60_000, staleTime: 30_000 });
+  const runAlpacaTest = async () => { setAlpacaTest({loading:true,message:"Checking server-side Alpaca credentials…"}); try { const result = await apiPost<{ok:boolean;paper:boolean;account?:{id?:string;status?:string;currency?:string;tradingBlocked?:boolean};error?:string}>("/api/integrations/alpaca/test",{}); setAlpacaTest({loading:false,ok:result.ok,message:result.ok ? "Account handshake succeeded · " + (result.paper ? "PAPER" : "LIVE") + " · " + (result.account?.status ?? "status unknown") + " · " + (result.account?.currency ?? "currency unknown") : "Connection failed"}); } catch (error) { setAlpacaTest({loading:false,ok:false,message:(error as Error).message}); } };
   const [polySearch, setPolySearch] = useState("");
   const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: async () => { const response = await fetch("https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume_24hr&ascending=false&limit=50"); if (!response.ok) throw new Error("Polymarket API returned HTTP " + response.status); return response.json() as Promise<PolyMarket[]>; }, enabled: view === "polymarket", refetchInterval: 60_000, staleTime: 30_000 });
 
@@ -42,17 +60,38 @@ export default function WorkbenchView({ view }: { view: View }) {
     `Risk per trade: ${risk}% · Target: ${rr}R`,
   ].join("\n"), [strategyName, market, timeframe, trend, entry, stop, risk, rr]);
 
-  if (view === "settings") return (
-    <section className="workbench-page">
-      <div className="workbench-intro"><div className="eyebrow">CONFIGURATION / ACCOUNTS</div><h2>Connections & settings</h2><p>Manage data providers and trading accounts. Credentials must be stored server-side, never in browser storage.</p></div>
-      <div className="settings-section"><div className="section-heading"><div><h3>Broker connections</h3><p>Secure account linking and live order routing</p></div><span className="state-badge state-off">0 CONNECTED</span></div>
-        <div className="broker-grid">{BROKERS.map((broker) => <article className="broker-card" key={broker.name}><div className="broker-card-top"><div className="broker-logo">{broker.name.slice(0, 2).toUpperCase()}</div><span className="state-badge state-off">NOT LINKED</span></div><h4>{broker.name}</h4><p>{broker.detail}</p><div className="broker-method">{broker.method}</div><button className="workbench-button" onClick={() => setBrokerNotice(`${broker.name}: secure connector is not configured yet. No account was connected and no credentials were collected.`)}>Configure connection <span>↗</span></button></article>)}</div>
-        {brokerNotice && <div className="notice-line"><span>INFO</span>{brokerNotice}<button onClick={() => setBrokerNotice("")} aria-label="Dismiss">×</button></div>}
-      </div>
-      <div className="settings-section"><div className="section-heading"><div><h3>Prediction markets</h3><p>Market discovery and probability monitoring</p></div></div><article className="integration-row"><div><strong>Polymarket</strong><p>Public market data first; wallet trading should remain separately permissioned.</p></div><span className="state-badge state-off">ADAPTER PENDING</span><button className="workbench-button" onClick={() => setBrokerNotice("Polymarket public-data adapter is not configured. No wallet has been connected.")}>Set up</button></article></div>
-      <div className="settings-section"><div className="section-heading"><div><h3>Data & security</h3><p>Connection state is explicit; no fake live indicators.</p></div></div><div className="security-note"><span className="security-icon">⌑</span><div><strong>Server-side secrets only</strong><p>API keys, OAuth refresh tokens and broker sessions must be encrypted on the server. Read-only permissions should be the default; order placement requires a separate explicit opt-in.</p></div></div></div>
-    </section>
-  );
+  if (view === "settings") {
+    const integrations = integrationsQuery.data?.integrations ?? [];
+    const readyCount = integrations.filter((item) => item.configured).length;
+    return (
+      <section className="workbench-page">
+        <div className="workbench-intro"><div className="eyebrow">SYSTEM / PREFERENCES & CONNECTIONS</div><h2>Settings</h2><p>Control the terminal experience and monitor server-side integrations. Credentials are never saved in browser storage.</p></div>
+        <div className="settings-section">
+          <div className="section-heading"><div><h3><AppIcon name="sliders" size={16}/> Appearance & workspace</h3><p>Preferences are saved locally and applied throughout the app.</p></div><button className="workbench-button" onClick={resetPreferences}>Reset preferences</button></div>
+          <div className="preferences-grid">
+            <div className="preference-card"><div className="preference-label"><span>Interface font size</span><strong>{Math.round(fontScale*100)}%</strong></div><input aria-label="Interface font size" type="range" min="0.9" max="1.3" step="0.05" value={fontScale} onChange={e=>setFontScale(Number(e.target.value))}/><div className="preference-hints"><span>Compact</span><span>Large</span></div></div>
+            <div className="preference-card"><label htmlFor="density-setting">Layout spacing</label><select id="density-setting" value={density} onChange={e=>setDensity(e.target.value as "comfortable"|"compact")}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select><p>Adjust navigation, rows and panel padding.</p></div>
+            <div className="preference-card"><label htmlFor="refresh-setting">Market refresh interval</label><select id="refresh-setting" value={refreshSeconds} onChange={e=>setRefreshSeconds(Number(e.target.value) as 15|30|60)}><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">60 seconds</option></select><p>Polling interval preference.</p></div>
+            <div className="preference-card"><label htmlFor="start-view-setting">Startup workspace</label><select id="start-view-setting" value={startView} onChange={e=>setStartView(e.target.value as "ai"|"chart"|"news"|"watchlist"|"settings")}><option value="ai">AI Terminal</option><option value="chart">Charts</option><option value="news">News & AI</option><option value="watchlist">Watchlist</option><option value="settings">Settings</option></select><p>Used when the app next opens.</p></div>
+            <div className="preference-card preference-toggle"><div><strong>Motion & transitions</strong><p>Use subtle fades and hover transitions.</p></div><button className={"switch-button " + (animations ? "enabled" : "")} role="switch" aria-checked={animations} onClick={()=>setAnimations(!animations)}><span/></button></div>
+            <div className="preference-card preference-toggle"><div><strong>Color profile</strong><p>Pure black · terminal amber · market states.</p></div><span className="state-badge state-warn">BLACK / AMBER</span></div>
+          </div>
+        </div>
+        <div className="settings-section">
+          <div className="section-heading"><div><h3><AppIcon name="plug" size={16}/> Integration health</h3><p>Configured means server settings exist; connected means a real provider handshake succeeded.</p></div><div className="integration-actions"><span className="state-badge state-off">{readyCount} CONFIGURED</span><button className="workbench-button" onClick={()=>integrationsQuery.refetch()}><AppIcon name="refresh" size={14}/> Refresh</button></div></div>
+          {integrationsQuery.isLoading && <div className="integration-loading">Checking API server configuration…</div>}
+          {integrationsQuery.error && <div className="notice-line"><span>API ERROR</span>{(integrationsQuery.error as Error).message}. Check API_URL and the shared API_KEY configuration.</div>}
+          <div className="integration-list">{integrations.map((item)=> <article className="integration-card" key={item.id}><div className="integration-icon"><AppIcon name={item.id==="ai"?"brain":item.id==="rss"?"rss":item.id==="polymarket"?"globe":item.id==="alpaca"?"activity":"plug"} size={19}/></div><div className="integration-copy"><strong>{item.label}</strong><p>{item.detail}</p></div><span className={"state-badge " + (item.configured ? "state-warn" : "state-off")}>{item.configured ? (item.id==="polymarket" ? "PUBLIC DATA" : "CONFIGURED") : "NOT CONFIGURED"}</span>{item.id==="alpaca" && item.configured && <button className="workbench-button" disabled={alpacaTest.loading} onClick={runAlpacaTest}>{alpacaTest.loading?"Testing…":"Test account"}</button>}</article>)}</div>
+          {alpacaTest.message && <div className="notice-line"><span>{alpacaTest.loading?"TESTING":alpacaTest.ok?"CONNECTED":"FAILED"}</span>{alpacaTest.message}</div>}
+          <div className="security-note"><span className="security-icon"><AppIcon name="shield" size={22}/></span><div><strong>Secrets stay on the API server</strong><p>Set provider credentials as environment variables in the server deployment. Never paste private broker keys into a frontend form. Use read-only keys by default; live order execution must be separately permissioned and tested.</p></div></div>
+        </div>
+        <div className="settings-section">
+          <div className="section-heading"><div><h3><AppIcon name="server" size={16}/> Connection setup</h3><p>Server-side variables used by the current integration adapters.</p></div></div>
+          <div className="setup-grid"><article><strong>AI API</strong><code>ANTHROPIC_API_KEY</code><p>Set in the API service environment. The UI never sees the key.</p></article><article><strong>Alpaca</strong><code>ALPACA_API_KEY</code><code>ALPACA_SECRET_KEY</code><code>ALPACA_PAPER=true</code><p>Paper mode is the default unless explicitly set to false.</p></article><article><strong>RSS / Atom</strong><code>RSS_FEEDS</code><p>Comma-separated trusted feed URLs; feed validation and fetching happen server-side.</p></article><article><strong>Other brokers</strong><code>OAuth / gateway adapter</code><p>IBKR, OANDA, Tradovate and MT5 require provider-specific authentication and session handling before they can be marked connected.</p></article></div>
+        </div>
+      </section>
+    );
+  }
 
   if (view === "strategy") return (
     <section className="workbench-page">
@@ -87,7 +126,7 @@ export default function WorkbenchView({ view }: { view: View }) {
     </section>
   );
 
-  const polyMarkets = (polymarketQuery.data ?? []).filter((item) => (item.question ?? "").toLowerCase().includes(polySearch.toLowerCase()));
+  const polyMarkets = (polymarketQuery.data?.markets ?? []).filter((item) => (item.question ?? "").toLowerCase().includes(polySearch.toLowerCase()));
   const money = (value?: string | number) => { const n = Number(value ?? 0); return Number.isFinite(n) ? n >= 1_000_000 ? "$" + (n / 1_000_000).toFixed(2) + "M" : n >= 1_000 ? "$" + (n / 1_000).toFixed(1) + "K" : "$" + n.toFixed(0) : "—"; };
   const probability = (value?: string) => { try { const n = Number(JSON.parse(value ?? "[]")[0]); return Number.isFinite(n) ? (n * 100).toFixed(1) + "%" : "—"; } catch { return "—"; } };
   return (
@@ -95,7 +134,7 @@ export default function WorkbenchView({ view }: { view: View }) {
       <div className="workbench-intro"><div className="eyebrow">ALTERNATIVE DATA / PREDICTION MARKETS</div><h2>Polymarket</h2><p>Public market data for event probabilities, liquidity and activity. Trading and wallet access are not enabled here.</p></div>
       <div className="poly-toolbar"><div><span className={`status-dot ${polymarketQuery.isSuccess ? "up-bg" : "idle-bg"}`}/> {polymarketQuery.isSuccess ? "PUBLIC MARKET DATA CONNECTED · REFRESHES EVERY 60S" : polymarketQuery.isLoading ? "CONNECTING TO PUBLIC MARKET DATA…" : "PUBLIC MARKET DATA UNAVAILABLE"}</div><input aria-label="Search prediction markets" placeholder="Filter markets…" value={polySearch} onChange={e=>setPolySearch(e.target.value)} /><button className="workbench-button" onClick={()=>polymarketQuery.refetch()}>Refresh</button></div>
       {polymarketQuery.error && <div className="notice-line"><span>FEED ERROR</span>{(polymarketQuery.error as Error).message}. The API may be unreachable from this browser or deployment.</div>}
-      {polymarketQuery.isLoading ? <div className="engine-empty"><div className="engine-icon">↻</div><h3>Loading public markets</h3><p>Fetching active markets from Polymarket's public Gamma API.</p></div> : polyMarkets.length ? <div className="poly-table-wrap"><table className="data-table poly-table"><thead><tr><th>EVENT / MARKET</th><th>TOP OUTCOME</th><th>24H VOLUME</th><th>LIQUIDITY</th><th>END DATE</th><th>LINK</th></tr></thead><tbody>{polyMarkets.map((item,index)=><tr key={item.slug ?? item.question ?? index}><td className="poly-question">{item.question ?? "Untitled market"}</td><td className="amber">{probability(item.outcomePrices)}</td><td>{money(item.volume24hr ?? item.volume)}</td><td>{money(item.liquidity)}</td><td>{item.endDate ? new Date(item.endDate).toLocaleDateString() : "—"}</td><td>{item.slug ? <a href={`https://polymarket.com/event/${encodeURIComponent(item.slug)}`} target="_blank" rel="noreferrer">OPEN ↗</a> : "—"}</td></tr>)}</tbody></table></div> : <div className="engine-empty"><div className="engine-icon">P</div><h3>{polySearch ? "No matching markets" : "No market data returned"}</h3><p>{polySearch ? "Try another search phrase." : "The public market API returned no active markets."}</p></div>}
+      {polymarketQuery.isLoading ? <div className="engine-empty"><div className="engine-icon">↻</div><h3>Loading public markets</h3><p>Fetching active markets from Polymarket's public Gamma API.</p></div> : polyMarkets.length ? <div className="poly-table-wrap"><table className="data-table poly-table"><thead><tr><th>EVENT / MARKET</th><th>TOP OUTCOME</th><th>24H VOLUME</th><th>LIQUIDITY</th><th>END DATE</th><th>LINK</th></tr></thead><tbody>{polyMarkets.map((item,index)=><tr key={item.slug ?? item.question ?? index}><td className="poly-question">{item.question ?? "Untitled market"}</td><td className="amber">{probability(item.outcomePrices)}</td><td>{money(item.volume24hr ?? item.volume_24hr ?? item.volume)}</td><td>{money(item.liquidity)}</td><td>{(item.endDate ?? item.end_date) ? new Date((item.endDate ?? item.end_date)!).toLocaleDateString() : "—"}</td><td>{item.slug ? <a href={`https://polymarket.com/event/${encodeURIComponent(item.slug)}`} target="_blank" rel="noreferrer">OPEN ↗</a> : "—"}</td></tr>)}</tbody></table></div> : <div className="engine-empty"><div className="engine-icon">P</div><h3>{polySearch ? "No matching markets" : "No market data returned"}</h3><p>{polySearch ? "Try another search phrase." : "The public market API returned no active markets."}</p></div>}
       <div className="poly-disclaimer">PUBLIC DATA ONLY · No wallet connection, order placement, or investment recommendation. Market data can be delayed or unavailable.</div>
     </section>
   );
