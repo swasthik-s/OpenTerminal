@@ -4,6 +4,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { normalizeSymbol } from "../lib/symbol";
 
+export type AppView = "settings" | "strategy" | "backtest" | "polymarket";
+
 export type WidgetType =
   | "quote"
   | "chart"
@@ -36,11 +38,11 @@ type TerminalState = {
   layout: LayoutItem[];
   watchlist: string[];
   commandOpen: boolean;
-  activeTab: "dashboard" | WidgetType;
+  activeTab: "dashboard" | WidgetType | AppView;
   setActiveSymbol: (s: string) => void;
   setCommandOpen: (open: boolean) => void;
   openTab: (type: WidgetType) => void;
-  setActiveTab: (tab: "dashboard" | WidgetType) => void;
+  setActiveTab: (tab: "dashboard" | WidgetType | AppView) => void;
   addWidget: (type: WidgetType, symbol?: string) => void;
   removeWidget: (id: string) => void;
   setWidgetSymbol: (id: string, symbol: string) => void;
@@ -93,7 +95,7 @@ export const useTerminal = create<TerminalState>()(
       layout: DEFAULT_LAYOUT,
       watchlist: ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "GOOGL", "META", "SPY"],
       commandOpen: false,
-      activeTab: "dashboard",
+      activeTab: "ai",
       setActiveSymbol: (s) => {
         const sym = normalizeSymbol(s);
         if (sym) set({ activeSymbol: sym });
@@ -136,9 +138,9 @@ export const useTerminal = create<TerminalState>()(
         }));
       },
       removeFromWatchlist: (s) => set((st) => ({ watchlist: st.watchlist.filter((x) => x !== s) })),
-      resetWorkspace: () => set({ widgets: DEFAULT_WIDGETS, layout: DEFAULT_LAYOUT, activeTab: "dashboard" }),
+      resetWorkspace: () => set({ widgets: DEFAULT_WIDGETS, layout: DEFAULT_LAYOUT, activeTab: "ai" }),
     }),
-    { name: "openterminal-workspace", version: 3, migrate: (persistedState) => { const state = persistedState as Partial<TerminalState>; return { ...state, widgets: DEFAULT_WIDGETS, layout: DEFAULT_LAYOUT, activeTab: "dashboard" } as TerminalState; } }
+    { name: "openterminal-workspace", version: 3, migrate: (persistedState) => { const state = persistedState as Partial<TerminalState>; return { ...state, widgets: DEFAULT_WIDGETS, layout: DEFAULT_LAYOUT, activeTab: "ai" } as TerminalState; } }
   )
 );
 
