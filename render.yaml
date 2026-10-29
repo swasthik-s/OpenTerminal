@@ -1,0 +1,26 @@
+# Render Blueprint: deploy only the OpenTerminal API.
+# Persistent disk keeps SQLite portfolios and saved RSS feeds between deploys.
+services:
+  - type: web
+    name: openterminal-api
+    runtime: docker
+    plan: starter
+    region: singapore
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/status
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_HOST
+        value: 0.0.0.0
+      - key: DATA_DIR
+        value: /app/data
+      - key: WEB_ORIGIN
+        value: https://open-terminal-roan.vercel.app
+      - key: API_KEY
+        generateValue: true
+    disk:
+      name: openterminal-data
+      mountPath: /app/data
+      sizeGB: 1
