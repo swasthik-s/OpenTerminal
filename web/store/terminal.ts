@@ -95,8 +95,8 @@ export const useTerminal = create<TerminalState>()(
       layout: DEFAULT_LAYOUT,
       watchlist: ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "GOOGL", "META", "SPY"],
       commandOpen: false,
-      activeTab: "dashboard",
-      openTabs: [],
+      activeTab: "chart",
+      openTabs: ["chart", "quote", "watchlist", "news", "macro"],
       setActiveSymbol: (s) => {
         const sym = normalizeSymbol(s);
         if (sym) set({ activeSymbol: sym });
@@ -140,9 +140,9 @@ export const useTerminal = create<TerminalState>()(
         }));
       },
       removeFromWatchlist: (s) => set((st) => ({ watchlist: st.watchlist.filter((x) => x !== s) })),
-      resetWorkspace: () => set({ widgets: DEFAULT_WIDGETS, layout: DEFAULT_LAYOUT }),
+      resetWorkspace: () => set({ widgets: DEFAULT_WIDGETS, layout: DEFAULT_LAYOUT, openTabs: ["chart", "quote", "watchlist", "news", "macro"], activeTab: "chart" }),
     }),
-    { name: "openterminal-workspace" }
+    { name: "openterminal-workspace", version: 2, migrate: (persistedState) => { const state = persistedState as Partial<TerminalState>; const widgetTypes = [...new Set((state.widgets ?? DEFAULT_WIDGETS).map((widget) => widget.type))]; const openTabs = widgetTypes.length ? widgetTypes : ["chart", "quote", "watchlist", "news", "macro"]; return { ...state, openTabs, activeTab: openTabs.includes("chart") ? "chart" : (openTabs[0] ?? "dashboard") } as TerminalState; } }
   )
 );
 
