@@ -2,50 +2,51 @@
 
 import { useTerminal, type WidgetType } from "../store/terminal";
 
-const ITEMS: Array<{ type: WidgetType; label: string; key: string }> = [
-  { type: "chart", label: "CHART", key: "⌥1" },
-  { type: "quote", label: "QUOTE", key: "⌥2" },
-  { type: "news", label: "NEWS", key: "⌥3" },
-  { type: "screener", label: "SCREENER", key: "⌥4" },
-  { type: "heatmap", label: "HEATMAP", key: "⌥5" },
-  { type: "crypto", label: "CRYPTO", key: "⌥6" },
-  { type: "options", label: "OPTIONS", key: "⌥7" },
-  { type: "portfolio", label: "PORTFOLIO", key: "⌥8" },
-  { type: "ai", label: "AI ASSIST", key: "⌥9" },
-  { type: "watchlist", label: "WATCHLIST", key: "" },
-  { type: "macro", label: "MACRO", key: "" },
-  { type: "calendar", label: "CALENDAR", key: "" },
-  { type: "insider", label: "INSIDER", key: "" },
-  { type: "tv", label: "LIVE TV", key: "" },
-  { type: "recap", label: "MARKET RECAP", key: "" },
+const ITEMS: Array<{ type: WidgetType; label: string; key: string; icon: string; group: string }> = [
+  { type: "chart", label: "Chart", key: "⌥1", icon: "⌁", group: "MARKETS" },
+  { type: "quote", label: "Quote", key: "⌥2", icon: "◉", group: "MARKETS" },
+  { type: "watchlist", label: "Watchlist", key: "", icon: "☆", group: "MARKETS" },
+  { type: "screener", label: "Screener", key: "⌥4", icon: "☷", group: "MARKETS" },
+  { type: "heatmap", label: "Heatmap", key: "⌥5", icon: "▦", group: "MARKETS" },
+  { type: "crypto", label: "Crypto", key: "⌥6", icon: "₿", group: "MARKETS" },
+  { type: "options", label: "Options", key: "⌥7", icon: "⌘", group: "TRADING" },
+  { type: "portfolio", label: "Portfolio", key: "⌥8", icon: "▤", group: "TRADING" },
+  { type: "macro", label: "Macro & indexes", key: "", icon: "⌇", group: "RESEARCH" },
+  { type: "news", label: "News", key: "⌥3", icon: "▤", group: "RESEARCH" },
+  { type: "calendar", label: "Calendar", key: "", icon: "▦", group: "RESEARCH" },
+  { type: "insider", label: "Insider activity", key: "", icon: "↗", group: "RESEARCH" },
+  { type: "recap", label: "Market recap", key: "", icon: "◷", group: "RESEARCH" },
+  { type: "tv", label: "Live TV", key: "", icon: "▷", group: "TOOLS" },
+  { type: "ai", label: "AI assistant", key: "⌥9", icon: "✳", group: "TOOLS" },
 ];
 
 export default function Sidebar() {
   const addWidget = useTerminal((s) => s.addWidget);
   const resetWorkspace = useTerminal((s) => s.resetWorkspace);
+  let previousGroup = "";
 
   return (
-    <nav className="w-32 bg-[var(--panel)] border-r border-[var(--border)] flex flex-col shrink-0">
-      <div className="dim px-2 py-1 text-[10px] uppercase tracking-wider border-b border-[var(--border)]">
-        Add widget
+    <nav className="terminal-sidebar">
+      <div className="sidebar-heading">WORKSPACE <span>＋</span></div>
+      <div className="sidebar-items">
+        {ITEMS.map((item) => {
+          const showGroup = item.group !== previousGroup;
+          previousGroup = item.group;
+          return (
+            <div key={item.type}>
+              {showGroup && <div className="sidebar-group">{item.group}</div>}
+              <button onClick={() => addWidget(item.type)} className="sidebar-item" title={item.key ? `${item.label} (${item.key})` : item.label}>
+                <span className="sidebar-icon">{item.icon}</span>
+                <span className="sidebar-label">{item.label}</span>
+                {item.key && <span className="sidebar-shortcut">{item.key}</span>}
+              </button>
+            </div>
+          );
+        })}
       </div>
-      {ITEMS.map((item) => (
-        <button
-          key={item.type}
-          onClick={() => addWidget(item.type)}
-          className="text-left px-2 py-1.5 text-[11px] hover:bg-[#1a1a1a] hover:text-[var(--amber)] flex justify-between"
-        >
-          <span>{item.label}</span>
-          <span className="dim text-[9px]">{item.key}</span>
-        </button>
-      ))}
-      <div className="mt-auto border-t border-[var(--border)]">
-        <button
-          onClick={resetWorkspace}
-          className="w-full text-left px-2 py-1.5 text-[11px] dim hover:text-[var(--down)]"
-        >
-          RESET LAYOUT
-        </button>
+      <div className="sidebar-footer">
+        <button onClick={resetWorkspace} className="reset-layout">↺ <span>Reset layout</span></button>
+        <div className="sidebar-version">OPENTERMINAL <span>•</span> DESKTOP</div>
       </div>
     </nav>
   );
