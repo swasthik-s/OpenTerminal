@@ -35,14 +35,17 @@ async function fetchRss(url: string, publisher: string, symbol: string | null): 
 }
 
 export async function customNews(symbol: string | null = null): Promise<NewsItem[]> {
-  const urls = (process.env.RSS_FEEDS ?? "").split(",").map((value) => value.trim()).filter(Boolean).slice(0, 20);
-  const allowed = urls.filter((value) => {
+  const envUrls = (process.env.RSS_FEEDS ?? "").split(",").map((value) => value.trim()).filter(Boolean).map((url) => ({ url, label: "" }));
+  const savedUrls = db.prepare("SELECT url, label FROM rss_feeds WHERE enabled = 1").all() as Array<{ url: string; label: string }>;
+  const unique = new Map<string, { url: string; label: string }>();
+  for (const item of [...envUrls, ...savedUrls]) unique.set(item.url, item);
+  const allowed = [...unique.values()].filter(({ url: value }) => {
     try {
       const url = new URL(value);
       return url.protocol === "https:" && url.hostname !== "localhost" && !url.hostname.endsWith(".local") && !url.hostname.endsWith(".internal");
     } catch { return false; }
-  });
-  const results = await Promise.allSettled(allowed.map((url) => fetchRss(url, new URL(url).hostname, symbol)));
+  }).slice(0, 20);
+  const results = await Promise.allSettled(allowed.map(({ url, label }) => fetchRss(url, label || new URL(url).hostname, symbol)));
   return results.filter((result) => result.status === "fulfilled").flatMap((result) => (result as PromiseFulfilledResult<NewsItem[]>).value);
 }
 
