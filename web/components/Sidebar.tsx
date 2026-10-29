@@ -1,62 +1,48 @@
 "use client";
 
-import { useTerminal, type WidgetType } from "../store/terminal";
+import { useTerminal } from "../store/terminal";
 
-const GROUPS: Array<{ label: string; items: Array<{ type: WidgetType; title: string; icon: string; shortcut?: string }> }> = [
-  { label: "MONITOR", items: [
-    { type: "chart", title: "Chart", icon: "⌁", shortcut: "Alt 1" },
-    { type: "quote", title: "Quote", icon: "◉", shortcut: "Alt 2" },
-    { type: "watchlist", title: "Watchlist", icon: "☆" },
-  ]},
+const GROUPS = [
   { label: "MARKETS", items: [
-    { type: "screener", title: "Equity screener", icon: "☷", shortcut: "Alt 4" },
-    { type: "heatmap", title: "Market heatmap", icon: "▦", shortcut: "Alt 5" },
-    { type: "crypto", title: "Digital assets", icon: "₿", shortcut: "Alt 6" },
-    { type: "macro", title: "Macro & indexes", icon: "⌇" },
-    { type: "options", title: "Options", icon: "⌘", shortcut: "Alt 7" },
+    { type: "chart", title: "Charts", icon: "⌁" },
+    { type: "watchlist", title: "Watchlist", icon: "☆" },
+    { type: "news", title: "News", icon: "▤" },
+    { type: "screener", title: "Screener", icon: "⌕" },
   ]},
-  { label: "PORTFOLIO", items: [
-    { type: "portfolio", title: "Portfolio", icon: "▤", shortcut: "Alt 8" },
-    { type: "insider", title: "Insider activity", icon: "↗" },
+  { label: "TRADING LAB", items: [
+    { type: "strategy", title: "Strategy builder", icon: "⌘" },
+    { type: "backtest", title: "Backtest engine", icon: "∿" },
+    { type: "polymarket", title: "Polymarket", icon: "P" },
   ]},
-  { label: "NEWS & RESEARCH", items: [
-    { type: "news", title: "News", icon: "▤", shortcut: "Alt 3" },
-    { type: "calendar", title: "Economic calendar", icon: "▦" },
-    { type: "recap", title: "Market recap", icon: "◷" },
+  { label: "ACCOUNT", items: [
+    { type: "portfolio", title: "Portfolio", icon: "▥" },
+    { type: "settings", title: "Connections & settings", icon: "⚙" },
   ]},
-  { label: "TOOLS", items: [
-    { type: "ai", title: "AI research assistant", icon: "✳", shortcut: "Alt 9" },
-    { type: "tv", title: "Live TV", icon: "▷" },
-  ]},
-];
+] as const;
 
 export default function Sidebar() {
   const activeTab = useTerminal((s) => s.activeTab);
   const setActiveTab = useTerminal((s) => s.setActiveTab);
-  const resetWorkspace = useTerminal((s) => s.resetWorkspace);
 
   return (
     <aside className="terminal-sidebar">
-      <div className="sidebar-heading"><span>WORKSPACE</span><span className="sidebar-live-mark">● LIVE</span></div>
-      <nav className="sidebar-items" aria-label="Terminal navigation">
-        <button onClick={() => setActiveTab("dashboard")} className={`sidebar-item sidebar-overview ${activeTab === "dashboard" ? "active" : ""}`}>
-          <span className="sidebar-icon">▦</span><span className="sidebar-label">Overview</span>
+      <div className="sidebar-heading"><span>WORKSPACE</span><span className="sidebar-live-mark">● LOCAL</span></div>
+      <nav className="sidebar-items" aria-label="Main navigation">
+        <button onClick={() => setActiveTab("ai")} className={`sidebar-item ${activeTab === "ai" ? "active" : ""}`}>
+          <span className="sidebar-icon">✳</span><span className="sidebar-label">AI Terminal</span><span className="sidebar-shortcut">⌘K</span>
         </button>
         {GROUPS.map((group) => (
           <section className="sidebar-nav-group" key={group.label}>
             <div className="sidebar-group">{group.label}</div>
             {group.items.map((item) => (
-              <button key={item.type} onClick={() => setActiveTab(item.type)} className={`sidebar-item ${activeTab === item.type ? "active" : ""}`} title={item.shortcut ? `${item.title} · ${item.shortcut}` : item.title}>
-                <span className="sidebar-icon">{item.icon}</span><span className="sidebar-label">{item.title}</span>{item.shortcut && <span className="sidebar-shortcut">{item.shortcut.replace("Alt ", "⌥")}</span>}
+              <button key={item.type} onClick={() => setActiveTab(item.type)} className={`sidebar-item ${activeTab === item.type ? "active" : ""}`}>
+                <span className="sidebar-icon">{item.icon}</span><span className="sidebar-label">{item.title}</span>
               </button>
             ))}
           </section>
         ))}
       </nav>
-      <div className="sidebar-footer">
-        <button onClick={resetWorkspace} className="reset-layout"><span>↺</span><span>Reset workspace</span></button>
-        <div className="sidebar-version">OPENTERMINAL <span>●</span> MARKET WORKSTATION</div>
-      </div>
+      <div className="sidebar-footer"><div className="sidebar-version">OPENTERMINAL <span>●</span> WORKSTATION</div></div>
     </aside>
   );
 }
