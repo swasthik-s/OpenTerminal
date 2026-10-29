@@ -283,6 +283,25 @@ marketRouter.get("/search", async (req, res) => {
 
 // ---- news ----
 
+marketRouter.get("/polymarket/markets", async (req, res) => {
+  const query = String(req.query.q ?? "").trim().toLowerCase().slice(0, 120);
+  try {
+    const result = await cached("polymarket:markets", 60_000, async () => {
+      const response = await fetch("https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume_24hr&ascending=false&limit=100", { headers: { "User-Agent": "OpenTerminal/1.0" }, signal: AbortSignal.timeout(8000) });
+      if (!response.ok) throw new Error(`Polymarket Gamma API returned HTTP ${response.status}`);
+      const markets = await response.json() as unknown;
+      if (!Array.isArray(markets)) throw new Error("Unexpected Polymarket API response shape");
+      return { fetchedAt: new Date().toISOString(), markets };
+    });
+    const markets = query ? result.markets.filter((item: any) => String(item.question ?? "").toLowerCase().includes(query)) : result.markets;
+    res.json({ fetchedAt: result.fetchedAt, count: markets.length, markets });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[polymarket]", detail);
+    res.status(502).json({ error: "Polymarket public market data is temporarily unavailable." });
+  }
+});
+
 marketRouter.get("/news", async (req, res) => {
   const symbol = req.query.symbol ? String(req.query.symbol).toUpperCase() : null;
   try {
