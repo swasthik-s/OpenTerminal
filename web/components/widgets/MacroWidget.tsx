@@ -7,6 +7,8 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from "rec
 import { useTerminal } from "../../store/terminal";
 import Flash from "../Flash";
 
+import { usePreferences } from "../../store/preferences";
+
 type MacroData = {
   yields: Array<{ tenor: string; value: number | null }>;
   vix: number | null;
@@ -16,12 +18,13 @@ type MacroData = {
 };
 
 export default function MacroWidget() {
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
   const setActiveSymbol = useTerminal((s) => s.setActiveSymbol);
   const [region, setRegion] = useState<"us" | "eu">("us");
   const { data, error } = useQuery({
     queryKey: ["macro", region],
     queryFn: () => apiGet<MacroData>(`/api/macro?region=${region}`),
-    refetchInterval: 1_000,
+    refetchInterval: refreshSeconds * 1000,
   });
 
   return (
