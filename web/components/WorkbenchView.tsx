@@ -47,7 +47,7 @@ export default function WorkbenchView({ view }: { view: View }) {
   const startView = usePreferences((s) => s.startView);
   const setStartView = usePreferences((s) => s.setStartView);
   const resetPreferences = usePreferences((s) => s.resetPreferences);
-  const integrationsQuery = useQuery({ queryKey: ["integration-status"], queryFn: () => apiGet<{checkedAt:string; integrations:Integration[]}>("/api/integrations/status"), enabled: view === "settings", refetchInterval: 60_000 });
+  const integrationsQuery = useQuery({ queryKey: ["integration-status"], queryFn: () => apiGet<{checkedAt:string; integrations:Integration[]}>("/api/integrations/status"), enabled: view === "settings", refetchInterval: refreshSeconds * 1000 });
   const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: () => apiGet<{fetchedAt:string; count:number; markets:PolyMarket[]}>("/api/polymarket/markets"), enabled: view === "polymarket", refetchInterval: 60_000, staleTime: 30_000 });
   const runAlpacaTest = async () => { setAlpacaTest({loading:true,message:"Checking server-side Alpaca credentials…"}); try { const result = await apiPost<{ok:boolean;paper:boolean;account?:{id?:string;status?:string;currency?:string;tradingBlocked?:boolean};error?:string}>("/api/integrations/alpaca/test",{}); setAlpacaTest({loading:false,ok:result.ok,message:result.ok ? "Account handshake succeeded · " + (result.paper ? "PAPER" : "LIVE") + " · " + (result.account?.status ?? "status unknown") + " · " + (result.account?.currency ?? "currency unknown") : "Connection failed"}); } catch (error) { setAlpacaTest({loading:false,ok:false,message:(error as Error).message}); } };
 
