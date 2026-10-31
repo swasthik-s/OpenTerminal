@@ -44,6 +44,7 @@ const TIMEZONES: Array<{ label: string; zone: string | undefined }> = [
 ];
 
 function EconomicTab() {
+  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
   const [minImpact, setMinImpact] = useState<"all" | "medium">("medium");
   const [tz, setTz] = useState<string>("Local");
 
@@ -253,7 +254,6 @@ function EarningsTab() {
 }
 
 export default function CalendarWidget() {
-  const refreshSeconds = usePreferences((s) => s.refreshSeconds);
   const [tab, setTab] = useState<"econ" | "earnings">("econ");
 
   return (
