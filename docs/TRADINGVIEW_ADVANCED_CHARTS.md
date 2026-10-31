@@ -1,53 +1,52 @@
-# TradingView Advanced Charts integration
+# TradingView charting strategy
 
-## Current status
+## Current decision
 
-OpenTerminal currently renders its chart widget with `lightweight-charts`. This is the existing chart and remains the fallback until the licensed TradingView runtime is available.
+OpenTerminal will use **TradingView Lightweight Charts** as its active chart engine for now. It is already integrated in `web/components/widgets/ChartWidget.tsx`, uses the v5 API, and is available through the public npm package.
 
-TradingView Advanced Charts is not an npm package that can be installed from the public registry. TradingView distributes it through a private GitHub repository after an access request is approved. Do not commit the licensed runtime, its bundles, or private type declarations to this public repository.
+Official project: https://github.com/tradingview/lightweight-charts  
+Documentation: https://tradingview.github.io/lightweight-charts/docs
 
-## Required access
+Lightweight Charts is open source under Apache 2.0. The application must retain the TradingView attribution notice from the package's `NOTICE` file and include a link to https://www.tradingview.com/. The chart enables the built-in attribution logo.
 
-1. Request access to **Advanced Charts** (not the broker-only Trading Platform) through the official TradingView product page: https://www.tradingview.com/ charting-library/
-2. Accept the private GitHub repository invitation from TradingView.
-3. Obtain the runtime using TradingView's official installation instructions.
-4. Keep the runtime out of Git. For deployment, provide it through a private build/deployment step or a private asset origin that is permitted by the TradingView license.
-5. Confirm the license permits the intended public OpenTerminal deployment before publishing it.
+## Current OpenTerminal implementation
+
+The existing chart provides:
+
+- Candlestick, OHLC bar, line, and area chart types.
+- Range controls from 1D through MAX.
+- Volume histogram.
+- SMA, EMA, VWAP, Bollinger Bands, RSI, and MACD overlays/panes.
+- Crosshair OHLCV and indicator legend.
+- Symbol linking through the terminal workspace.
+- Historical data from the existing `GET /api/history/:symbol?range=...` endpoint.
+
+The backend currently supplies range-based candles via its configured providers. Do not describe these candles as exchange-grade real-time data. The current periodic query refresh is a snapshot/polling mechanism, not a WebSocket market-data stream.
+
+## Planned improvements on Lightweight Charts
+
+1. Improve the chart toolbar and drawing/annotation workflow.
+2. Add chart markers for AI analysis and trade plans using the v5 `createSeriesMarkers` API.
+3. Add price lines for entry, stop-loss, take-profit, and key levels.
+4. Add a validated AI chart-command interface for symbol/range changes, indicators, markers, price lines, and chart state.
+5. Extend backend market data with normalized symbol/resolution/history contracts.
+6. Add a shared streaming transport when a provider with suitable real-time data is connected.
+7. Add drawing tools through supported Lightweight Charts plugins/primitives rather than manipulating internal canvas or DOM implementation details.
+
+For v5, create series with `chart.addSeries(SeriesType, options)`. Series markers use `createSeriesMarkers(series, markers)`; do not use the v4 `addCandlestickSeries` or `series.setMarkers` APIs.
+
+## Advanced Charts later
+
+Advanced Charts remains a possible future upgrade, not a current dependency. It is distributed by TradingView through a private repository after approval and is subject to separate licensing terms. Do not commit its licensed runtime or private type declarations to this public repository. Before switching, verify that the intended use and public deployment are permitted by the license, obtain access, implement the complete Datafeed API, and preserve the same OpenTerminal symbol/workspace and AI command interfaces.
 
 Official quick start: https://www.tradingview.com/charting-library-docs/latest/quick-start/
 
-## Datafeed architecture
+## Important scope distinction
 
-Advanced Charts does not include market data. OpenTerminal must implement the Datafeed API and supply:
-
-- supported resolutions and symbol metadata;
-- historical OHLCV bars;
-- real-time bar updates through a WebSocket or another supported streaming transport;
-- symbol search and resolution.
-
-The existing API already exposes:
-
-- `GET /api/history/:symbol?range=...` for historical candles;
-- `GET /api/search?q=...` for symbol search;
-- `GET /api/quotes?symbols=...` for quote snapshots.
-
-These endpoints currently expose a finite set of history ranges, not arbitrary `from/to/resolution` history queries. They are a useful bridge for an initial adapter, but they are not yet a complete TradingView Datafeed API. The existing history providers also have different asset coverage and update characteristics. Do not label this data as exchange-grade real-time streaming.
-
-## Planned implementation sequence
-
-1. Add the licensed runtime through a private deployment step.
-2. Implement a typed Advanced Charts adapter and load it only on the client (Next.js uses SSR).
-3. Extend the backend history API to accept symbol, resolution, `from`, and `to` and return correctly aligned bars.
-4. Add a shared market-data WebSocket for live bar subscriptions and unsubscribe handling.
-5. Replace the current chart widget with Advanced Charts, preserving OpenTerminal's symbol linking and workspace layout.
-6. Add a controlled AI chart-command layer (symbol/timeframe changes, indicators, drawings, and chart state). Validate every AI command against an allowlist.
-7. Add broker execution only through a separate broker adapter and explicit user confirmation.
-
-## Scope limitations
-
-Advanced Charts is not the full TradingView website. Pine Script, the native Strategy Tester, native alerts, and Bar Replay are not included. Custom indicators can be developed in JavaScript. TradingView's separate Trading Platform product has broker-oriented functionality and separate licensing.
+Lightweight Charts is a rendering library, not a market-data provider. OpenTerminal remains responsible for data acquisition, normalization, historical coverage, streaming, indicators, and execution integrations. It does not provide the full TradingView website experience or built-in Pine Script / Strategy Tester functionality.
 
 References:
-- https://www.tradingview.com/charting-library-docs/latest/connecting_data/
-- https://www.tradingview.com/charting-library-docs/latest/connecting_data/datafeed-api/
-- https://www.tradingview.com/charting-library-docs/latest/resources/Frequently-Asked-Questions/
+- https://github.com/tradingview/lightweight-charts
+- https://tradingview.github.io/lightweight-charts/docs
+- https://tradingview.github.io/lightweight-charts/docs/migrations/from-v4-to-v5
+- https://www.tradingview.com/charting-library-docs/latest/quick-start/
