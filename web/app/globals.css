@@ -751,3 +751,11 @@ button.term-btn { font-size: 13px; min-height: 36px; padding: 7px 12px; }
   .view-heading h1 { font-size: 21px; }
   .workbench-intro h2 { font-size: 26px; }
 }
+
+
+/* Professional typography: Roboto, not a typewriter/terminal face. */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800&display=swap');
+html, body, button, input, select, textarea, .terminal-app, .terminal-app *:not(code):not(pre):not(kbd):not(.mono):not([data-font="mono"]) { font-family: 'Roboto', Arial, Helvetica, sans-serif !important; }
+html, body { font-size: 15px !important; line-height: 1.55; letter-spacing: normal; }
+button, input, select, textarea { letter-spacing: normal; }
+table.data-table { font-variant-numeric: tabular-nums; }
