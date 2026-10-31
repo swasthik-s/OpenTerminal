@@ -131,7 +131,7 @@ export default function ChartWidget({ widget }: { widget: WidgetInstance }) {
     if (!el || !candles || candles.length === 0) return;
 
     const chart = createChart(el, {
-      layout: { background: { color: "#0a0a0a" }, textColor: "#808080", fontSize: 10, attributionLogo: false },
+      layout: { background: { color: "#0a0a0a" }, textColor: "#808080", fontSize: 10, attributionLogo: true },
       grid: { vertLines: { color: "#1a1a1a" }, horzLines: { color: "#1a1a1a" } },
       crosshair: { mode: 0 },
       timeScale: { borderColor: "#262626", timeVisible: range === "1D" || range === "5D" },
