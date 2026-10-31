@@ -1,4 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import { db } from "../db.js";
 
 export type NewsItem = {
@@ -12,10 +14,36 @@ export type NewsItem = {
 const parser = new XMLParser({ ignoreAttributes: false });
 const UA = "OpenTerminal/1.0";
 
+function publicAddress(ip: string): boolean {
+  if (ip.includes(":")) {
+    const value = ip.toLowerCase();
+    return value !== "::" && value !== "::1" && !value.startsWith("fc") && !value.startsWith("fd") && !value.startsWith("fe80:") && !value.startsWith("::ffff:127.") && !value.startsWith("::ffff:10.") && !value.startsWith("::ffff:192.168.");
+  }
+  const octets = ip.split(".").map(Number);
+  if (octets.length !== 4 || octets.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return false;
+  const [a, b] = octets;
+  return !(a === 0 || a === 10 || a === 127 || a >= 224 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || (a === 198 && (b === 18 || b === 19)));
+}
+
+async function assertPublicFeedUrl(value: string): Promise<URL> {
+  const url = new URL(value);
+  if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443")) throw new Error("Only public HTTPS feeds are allowed");
+  const hostname = url.hostname.replace(/^\\[|\\]$/g, "");
+  if (hostname === "localhost" || hostname.endsWith(".local") || hostname.endsWith(".internal")) throw new Error("Private feed host");
+  const addresses = isIP(hostname) ? [{ address: hostname }] : await lookup(hostname, { all: true, verbatim: true });
+  if (!addresses.length || addresses.some((entry) => !publicAddress(entry.address))) throw new Error("Feed host resolves to a private or reserved address");
+  return url;
+}
+
 async function fetchRss(url: string, publisher: string, symbol: string | null): Promise<NewsItem[]> {
-  const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(8000) });
+  const safeUrl = await assertPublicFeedUrl(url);
+  const res = await fetch(safeUrl, { headers: { "User-Agent": UA }, redirect: "error", signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error(`rss ${res.status}`);
-  const doc = parser.parse(await res.text());
+  const declaredSize = Number(res.headers.get("content-length") ?? 0);
+  if (declaredSize > 2_000_000) throw new Error("RSS feed exceeds 2 MB");
+  const xml = await res.text();
+  if (xml.length > 2_000_000) throw new Error("RSS feed exceeds 2 MB");
+  const doc = parser.parse(xml);
   const rssItems = doc?.rss?.channel?.item ?? doc?.channel?.item ?? [];
   const atomItems = doc?.feed?.entry ?? [];
   const normalize = (items: any, atom = false): NewsItem[] => {
@@ -39,12 +67,7 @@ export async function customNews(symbol: string | null = null): Promise<NewsItem
   const savedUrls = db.prepare("SELECT url, label FROM rss_feeds WHERE enabled = 1").all() as Array<{ url: string; label: string }>;
   const unique = new Map<string, { url: string; label: string }>();
   for (const item of [...envUrls, ...savedUrls]) unique.set(item.url, item);
-  const allowed = [...unique.values()].filter(({ url: value }) => {
-    try {
-      const url = new URL(value);
-      return url.protocol === "https:" && url.hostname !== "localhost" && !url.hostname.endsWith(".local") && !url.hostname.endsWith(".internal");
-    } catch { return false; }
-  }).slice(0, 20);
+  const allowed = [...unique.values()].filter(({ url }) => url.length <= 2048).slice(0, 20);
   const results = await Promise.allSettled(allowed.map(({ url, label }) => fetchRss(url, label || new URL(url).hostname, symbol)));
   return results.filter((result) => result.status === "fulfilled").flatMap((result) => (result as PromiseFulfilledResult<NewsItem[]>).value);
 }
