@@ -65,7 +65,7 @@ integrationsRouter.get("/rss-feeds", (_req, res) => {
 integrationsRouter.post("/rss-feeds", async (req, res) => {
   try {
     const url = await validateFeedUrl(req.body?.url);
-    const response = await fetch(url, { headers: { "User-Agent": "OpenTerminal/1.0" }, signal: AbortSignal.timeout(8000) });
+    const response = await fetch(url, { headers: { "User-Agent": "OpenTerminal/1.0" }, redirect: "error", signal: AbortSignal.timeout(8000) });
     if (!response.ok) return res.status(400).json({ error: `Feed returned HTTP ${response.status}.` });
     const xml = await response.text();
     if (xml.length > 2_000_000) return res.status(400).json({ error: "Feed response is too large (2 MB maximum)." });
