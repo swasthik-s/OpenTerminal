@@ -48,23 +48,25 @@ export default function QuoteWidget({ widget }: { widget: WidgetInstance }) {
   ];
 
   return (
-    <div className="p-2">
-      <div className="flex items-baseline gap-3 mb-1">
-        <Flash value={data.price} className="text-xl font-bold">{fmt(data.price)}</Flash>
-        <Flash value={data.changePercent} className={`${pctClass(data.changePercent)} text-sm`}>
-          {data.change !== null && data.change >= 0 ? "+" : ""}
-          {fmt(data.change)} ({fmt(data.changePercent)}%)
-        </Flash>
-        <span className="dim text-[10px] ml-auto">
-          {data.exchange ?? ""} · {data.currency ?? ""} · {data.source}
-        </span>
+    <div className="quote-overview">
+      <div className="quote-hero">
+        <div className="quote-identity">
+          <span className="quote-symbol">{symbol}</span>
+          <span className="quote-company">{data.name}</span>
+        </div>
+        <div className="quote-price-line">
+          <Flash value={data.price} className="quote-price">{fmt(data.price)}</Flash>
+          <Flash value={data.changePercent} className={`quote-change ${pctClass(data.changePercent)}`}>
+            {data.change !== null && data.change >= 0 ? "+" : ""}
+            {fmt(data.change)} ({fmt(data.changePercent)}%)
+          </Flash>
+        </div>
+        <div className="quote-source">{data.exchange ?? ""} · {data.currency ?? ""} · {data.source}</div>
       </div>
-      <div className="dim text-[11px] mb-2 truncate">{data.name}</div>
-      <div className="grid grid-cols-2 gap-x-4">
-        {rows.map(([label, value]) => (
-          <div key={label} className="flex justify-between border-b border-[#161616] py-0.5">
-            <span className="dim">{label}</span>
-            <span>{value}</span>
+      <div className="quote-metrics">
+        {rows.map(([label, value], index) => (
+          <div key={label} className={`quote-metric ${index < 4 ? "quote-metric-primary" : ""}`}>
+            <span>{label}</span><strong>{value}</strong>
           </div>
         ))}
       </div>
