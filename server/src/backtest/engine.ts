@@ -1,7 +1,7 @@
 export type Candle = { time:number; open:number; high:number; low:number; close:number; volume?:number };
 export type BacktestConfig = { initialBalance:number; riskPct:number; rewardRisk:number; fastEma:number; slowEma:number; maxTradesPerDay:number; spread:number; slippage:number; commissionPerUnit:number };
 export type Trade = { entryTime:number; exitTime:number; side:"long"|"short"; entry:number; exit:number; stop:number; target:number; units:number; pnl:number; rMultiple:number; exitReason:"stop"|"target"|"end" };
-export type BacktestResult = { config:BacktestConfig; trades:Trade[]; initialBalance:number; finalBalance:number; netPnl:number; returnPct:number; winRate:number; profitFactor:number; maxDrawdown:number; maxDrawdownPct:number; expectancyR:number; totalTrades:number; wins:number; losses:number; equity:Array<{time:number;equity:number}> };
+export type BacktestResult = { config:BacktestConfig; trades:Trade[]; initialBalance:number; finalBalance:number; netPnl:number; returnPct:number; winRate:number; profitFactor:number|null; maxDrawdown:number; maxDrawdownPct:number; expectancyR:number; totalTrades:number; wins:number; losses:number; equity:Array<{time:number;equity:number}> };
 const finite=(n:number)=>Number.isFinite(n);
 export function validateCandles(input:unknown):Candle[]{
  if(!Array.isArray(input)||input.length<250||input.length>100000)throw new Error("Provide between 250 and 100,000 candles.");
@@ -34,5 +34,5 @@ export function runEmaPullbackBacktest(bars:Candle[],c:BacktestConfig):BacktestR
  if(position)closePosition(bars[bars.length-1],bars[bars.length-1].close,"end");
  const wins=trades.filter(t=>t.pnl>0),losses=trades.filter(t=>t.pnl<0),grossWin=wins.reduce((s,t)=>s+t.pnl,0),grossLoss=Math.abs(losses.reduce((s,t)=>s+t.pnl,0)),netPnl=balance-c.initialBalance,finalPeak=Math.max(peak,balance),finalDd=finalPeak-balance;
  maxDd=Math.max(maxDd,finalDd);if(finalPeak>0)maxDdPct=Math.max(maxDdPct,finalDd/finalPeak*100);
- return {config:c,trades,initialBalance:c.initialBalance,finalBalance:balance,netPnl,returnPct:netPnl/c.initialBalance*100,winRate:trades.length?wins.length/trades.length*100:0,profitFactor:grossLoss?grossWin/grossLoss:grossWin?Infinity:0,maxDrawdown:maxDd,maxDrawdownPct:maxDdPct,expectancyR:trades.length?trades.reduce((s,t)=>s+t.rMultiple,0)/trades.length:0,totalTrades:trades.length,wins:wins.length,losses:losses.length,equity};
+ return {config:c,trades,initialBalance:c.initialBalance,finalBalance:balance,netPnl,returnPct:netPnl/c.initialBalance*100,winRate:trades.length?wins.length/trades.length*100:0,profitFactor:grossLoss?grossWin/grossLoss:grossWin?null:0,maxDrawdown:maxDd,maxDrawdownPct:maxDdPct,expectancyR:trades.length?trades.reduce((s,t)=>s+t.rMultiple,0)/trades.length:0,totalTrades:trades.length,wins:wins.length,losses:losses.length,equity};
 }
