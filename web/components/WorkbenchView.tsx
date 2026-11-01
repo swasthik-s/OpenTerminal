@@ -6,7 +6,7 @@ import { apiGet, apiPost, apiDelete } from "../lib/api";
 import { usePreferences } from "../store/preferences";
 import AppIcon from "./AppIcon";
 
-type View = "settings" | "strategy" | "backtest" | "polymarket";
+type View = "settings" | "strategy" | "backtest" | "polymarket" | "prop";
 type Integration = { id: string; label: string; configured: boolean; mode: string; detail: string };
 type RssFeed = { id:number; url:string; label:string; enabled:number; createdAt:string };
 type ProviderStatus = { name:string; ok:number; failed:number; lastLatencyMs:number|null; lastError:string|null; lastSuccess:string|null };
@@ -143,6 +143,9 @@ export default function WorkbenchView({ view }: { view: View }) {
     </section>
   );
 
+
+  if (view === "prop") return <PropFirmView />;
+
   const polyMarkets = (polymarketQuery.data?.markets ?? []).filter((item) => (item.question ?? "").toLowerCase().includes(polySearch.toLowerCase()));
   const money = (value?: string | number) => { const n = Number(value ?? 0); return Number.isFinite(n) ? n >= 1_000_000 ? "$" + (n / 1_000_000).toFixed(2) + "M" : n >= 1_000 ? "$" + (n / 1_000).toFixed(1) + "K" : "$" + n.toFixed(0) : "—"; };
   const probability = (value?: string) => { try { const n = Number(JSON.parse(value ?? "[]")[0]); return Number.isFinite(n) ? (n * 100).toFixed(1) + "%" : "—"; } catch { return "—"; } };
@@ -156,3 +159,43 @@ export default function WorkbenchView({ view }: { view: View }) {
     </section>
   );
 }
+
+
+function PropFirmView() {
+  const [program,setProgram] = useState<"1-step"|"2-step">("2-step");
+  const [capital,setCapital] = useState("100000");
+  const [symbol,setSymbol] = useState("XAUUSD");
+  const [side,setSide] = useState<"BUY"|"SELL">("BUY");
+  const [quantity,setQuantity] = useState("1");
+  const [entry,setEntry] = useState("");
+  const [stop,setStop] = useState("");
+  const [target,setTarget] = useState("");
+  const [notice,setNotice] = useState("");
+  const [busy,setBusy] = useState(false);
+  const status = useQuery({queryKey:["ftmo-paper-status"],queryFn:()=>apiGet<any>("/api/prop/status"),refetchInterval:15000});
+  const ctrader = useQuery({queryKey:["ctrader-status"],queryFn:()=>apiGet<any>("/api/ctrader/status"),refetchInterval:30000});
+  const orders = useQuery({queryKey:["ftmo-paper-orders"],queryFn:()=>apiGet<any[]>("/api/prop/paper/orders"),enabled:!!status.data?.configured,refetchInterval:15000});
+  const configure = async () => {setBusy(true);setNotice("");try{await apiPost("/api/prop/paper/configure",{program,capital:Number(capital)});await status.refetch();await orders.refetch();setNotice("FTMO paper ledger initialized. This is a local simulation, not your cTrader account.");}catch(e){setNotice((e as Error).message);}finally{setBusy(false);}};
+  const authorize = async () => {setBusy(true);setNotice("");try{const r=await apiGet<{authorizationUrl:string}>("/api/ctrader/authorize");window.location.assign(r.authorizationUrl);}catch(e){setNotice((e as Error).message);setBusy(false);}};
+  const submitOrder = async (e:FormEvent) => {e.preventDefault();setBusy(true);setNotice("");try{await apiPost("/api/prop/paper/orders",{symbol:symbol.toUpperCase(),side,quantity:Number(quantity),entry:Number(entry),stop:Number(stop),target:Number(target)});await Promise.all([status.refetch(),orders.refetch()]);setNotice("Simulated paper order recorded. No broker order was sent.");}catch(err){setNotice((err as Error).message);}finally{setBusy(false);}};
+  const closeOrder = async (id:string) => {const exit=window.prompt("Enter simulated exit price");if(!exit)return;setBusy(true);try{await apiPost("/api/prop/paper/orders/"+id+"/close",{exit:Number(exit)});await Promise.all([status.refetch(),orders.refetch()]);setNotice("Paper position closed.");}catch(e){setNotice((e as Error).message);}finally{setBusy(false);}};
+  const account=status.data?.account, assessment=status.data?.assessment;
+  const money=(v:number)=>Number(v??0).toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:2});
+  return <section className="workbench-page">
+    <div className="workbench-intro"><div className="eyebrow">TRADING ENGINE / PROP FIRM</div><h2>FTMO · cTrader demo</h2><p>Prop-firm rule monitoring and a deterministic paper-trading ledger. Broker execution is not connected; no live trading controls exist.</p></div>
+    <div className="prop-status-strip"><span className="state-badge state-warn">PAPER MODE ONLY</span><span className="state-badge state-off">LIVE EXECUTION DISABLED</span><span className={"state-badge "+(ctrader.data?.configured?"state-warn":"state-off")}>cTRADER {ctrader.data?.configured?"CREDENTIALS CONFIGURED":"NOT CONFIGURED"}</span></div>
+    <div className="settings-section"><div className="section-heading"><div><h3><AppIcon name="shield" size={16}/> FTMO rule profile</h3><p>Choose the evaluation model and initialize the local paper account.</p></div><button className="workbench-button" onClick={()=>{status.refetch();ctrader.refetch();orders.refetch();}}>Refresh</button></div>
+      {!account ? <div className="prop-config"><label>FTMO program<select value={program} onChange={e=>setProgram(e.target.value as "1-step"|"2-step")}><option value="2-step">2-Step · 5% daily / 10% max loss</option><option value="1-step">1-Step · 3% daily / 10% max loss</option></select></label><label>Initial capital (USD)<input type="number" min="1000" step="1000" value={capital} onChange={e=>setCapital(e.target.value)}/></label><button className="workbench-button primary" disabled={busy} onClick={configure}>{busy?"Initializing…":"Initialize paper account"}</button></div> : <><div className="prop-metrics"><article><span>PROGRAM</span><strong>FTMO {account.program}</strong></article><article><span>INITIAL CAPITAL</span><strong>{money(account.initial_capital)}</strong></article><article><span>BALANCE</span><strong>{money(account.balance)}</strong></article><article><span>EQUITY</span><strong>{money(account.equity)}</strong></article></div><div className="prop-risk"><div><span>DAILY LOSS FLOOR</span><strong>{money(assessment?.dailyFloor)}</strong></div><div><span>MAXIMUM LOSS FLOOR</span><strong>{money(assessment?.maxLossFloor)}</strong></div><div><span>RISK GOVERNOR</span><strong className={assessment?.compliant&&!assessment?.hardLock?"up":"down"}>{assessment?.hardLock?"HARD LOCK":assessment?.compliant?"WITHIN LIMITS":"BREACH"}</strong></div></div></>}
+    </div>
+    <div className="settings-section"><div className="section-heading"><div><h3><AppIcon name="plug" size={16}/> cTrader authorization</h3><p>OAuth scaffolding is present, but token exchange and account streaming are not implemented yet.</p></div><span className="state-badge state-off">NOT CONNECTED</span></div><div className="security-note"><span className="security-icon"><AppIcon name="shield" size={22}/></span><div><strong>Demo-only connection setup</strong><p>Set CTRADER_CLIENT_ID, CTRADER_CLIENT_SECRET and CTRADER_REDIRECT_URI in the Render API environment. Authorization currently requests read-only account scope. The callback intentionally stops before token exchange; this button will not connect an account yet.</p></div></div><button className="workbench-button" disabled={busy||!ctrader.data?.oauthReady} onClick={authorize}>Authorize cTrader demo</button></div>
+    {account && <div className="settings-section"><div className="section-heading"><div><h3><AppIcon name="activity" size={16}/> Simulated paper orders</h3><p>Manual fills only. Each order is capped at 0.25% of initial capital; this is not a cTrader demo order.</p></div></div><form className="prop-order-form" onSubmit={submitOrder}><label>Symbol<input value={symbol} onChange={e=>setSymbol(e.target.value)}/></label><label>Side<select value={side} onChange={e=>setSide(e.target.value as "BUY"|"SELL")}><option>BUY</option><option>SELL</option></select></label><label>Quantity<input type="number" min="0.0001" step="any" value={quantity} onChange={e=>setQuantity(e.target.value)}/></label><label>Entry<input required type="number" min="0.00001" step="any" value={entry} onChange={e=>setEntry(e.target.value)}/></label><label>Stop loss<input required type="number" min="0.00001" step="any" value={stop} onChange={e=>setStop(e.target.value)}/></label><label>Take profit<input required type="number" min="0.00001" step="any" value={target} onChange={e=>setTarget(e.target.value)}/></label><button className="workbench-button primary" disabled={busy||!!assessment?.hardLock||!assessment?.compliant} type="submit">Record simulated order</button></form>
+      <div className="prop-orders-table"><table className="data-table"><thead><tr><th>SYMBOL</th><th>SIDE</th><th>QTY</th><th>ENTRY</th><th>STOP</th><th>TARGET</th><th>STATUS</th><th>P&amp;L</th><th></th></tr></thead><tbody>{(orders.data??[]).map((o:any)=><tr key={o.id}><td>{o.symbol}</td><td>{o.side}</td><td>{o.quantity}</td><td>{o.entry}</td><td>{o.stop}</td><td>{o.target}</td><td>{o.status}</td><td>{money(o.pnl)}</td><td>{o.status==="OPEN"&&<button className="workbench-button" disabled={busy} onClick={()=>closeOrder(o.id)}>Close</button>}</td></tr>)}</tbody></table>{!orders.data?.length&&<p className="integration-loading">No paper orders recorded.</p>}</div>
+    </div>}
+    {notice&&<div className="notice-line"><span>TRADING ENGINE</span>{notice}</div>}
+    {status.error&&<div className="notice-line"><span>API ERROR</span>{(status.error as Error).message}</div>}
+    <div className="prop-warning">SAFETY: simulated paper ledger only · no live broker orders · cTrader account not connected · validate FTMO program and daily rollover before relying on rule monitoring.</div>
+  </section>;
+}
+
+  if (view === "prop") return <PropFirmView />;
+
