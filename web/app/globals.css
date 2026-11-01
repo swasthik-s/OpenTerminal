@@ -768,3 +768,127 @@ table.data-table { font-variant-numeric: tabular-nums; }
 .workbench-page { min-height: 100%; height: auto; overflow: visible; }
 .workbench-page > * { min-width: 0; }
 .strategy-layout, .backtest-config, .setup-grid, .preferences-grid { min-width: 0; }
+
+
+/* OpenTerminal visual refresh — presentation layer only.
+   Keeps existing widgets, API calls, state and trading workflows intact. */
+:root {
+  --bg: #090d12;
+  --panel: #111821;
+  --panel-2: #151e29;
+  --panel-3: #1b2632;
+  --border: #263442;
+  --border-strong: #394b5c;
+  --amber: #d7a45d;
+  --amber-dim: #8c693d;
+  --text: #e7edf4;
+  --text-dim: #9eacbb;
+  --muted: #718092;
+}
+html, body { background: #090d12 !important; }
+.terminal-app { background: #090d12 !important; }
+.topbar {
+  height: 64px;
+  padding: 0 24px;
+  gap: 22px;
+  background: rgba(13, 19, 26, .96) !important;
+  border-bottom: 1px solid #25313d !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,.16) !important;
+  backdrop-filter: blur(18px);
+}
+.brand-mark { border-radius: 10px !important; }
+.brand-name { font-size: 14px !important; font-weight: 750; letter-spacing: .015em !important; }
+.terminal-body { background: #090d12 !important; }
+.terminal-sidebar {
+  width: 224px !important; min-width: 224px !important; max-width: 224px !important;
+  padding: 18px 13px 14px;
+  background: #0d131a !important;
+  border-right: 1px solid #25313d !important;
+}
+.sidebar-heading {
+  margin: 0 5px 16px; padding: 5px 7px 14px;
+  border-bottom: 1px solid #202c37 !important;
+  color: #7f8d9b; font-size: 10px; letter-spacing: .13em;
+}
+.sidebar-live-mark { color: #7d9e8e !important; }
+.sidebar-nav-group { margin-top: 16px !important; }
+.sidebar-group { padding: 0 9px 8px !important; color: #657587 !important; font-size: 9px !important; letter-spacing: .14em !important; }
+.sidebar-item {
+  min-height: 40px !important; height: 40px !important; margin: 2px 0;
+  padding: 8px 10px !important; gap: 11px !important;
+  border: 1px solid transparent !important; border-radius: 8px !important;
+  color: #a9b5c2 !important; font-size: 12px !important; letter-spacing: 0 !important;
+}
+.sidebar-item:hover:not(.active) { background: #151f29 !important; border-color: #263542 !important; color: #e6edf4 !important; }
+.sidebar-item.active {
+  background: linear-gradient(90deg, rgba(215,164,93,.15), rgba(215,164,93,.045)) !important;
+  border-color: rgba(215,164,93,.22) !important;
+  color: #f0c58b !important;
+  box-shadow: inset 2px 0 0 #d7a45d !important;
+}
+.sidebar-icon { color: inherit !important; }
+.sidebar-footer { border-top: 1px solid #202c37 !important; }
+.sidebar-version { color: #718092 !important; letter-spacing: .1em; }
+.terminal-main { background: #090d12 !important; }
+.overview-view, .single-view { background: #090d12 !important; }
+.view-heading {
+  padding: 26px 30px 20px !important;
+  min-height: 112px !important;
+  border-bottom: 1px solid #202c37;
+  background: radial-gradient(ellipse at 80% 0%, rgba(215,164,93,.055), transparent 42%);
+}
+.view-eyebrow { color: #8291a0 !important; font-size: 10px !important; letter-spacing: .14em !important; }
+.view-eyebrow span { color: #526171 !important; padding: 0 5px; }
+.view-heading h1 { color: #edf2f7 !important; font-size: 25px !important; font-weight: 650 !important; letter-spacing: -.045em !important; }
+.view-heading p { color: #8998a8 !important; font-size: 12px !important; }
+.overview-badges { gap: 8px !important; }
+.market-pill {
+  padding: 6px 10px !important; border: 1px solid #2b3947 !important;
+  border-radius: 999px !important; background: #121b24 !important;
+  color: #a9b6c3 !important; font-size: 9px !important; letter-spacing: .08em;
+}
+.overview-grid { padding: 14px 18px 22px !important; }
+.terminal-panel {
+  border: 1px solid #293846 !important; border-radius: 12px !important;
+  background: linear-gradient(155deg, #151e28 0%, #111821 70%) !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,.15) !important;
+}
+.terminal-panel:hover { border-color: #405365 !important; box-shadow: 0 12px 32px rgba(0,0,0,.22) !important; }
+.panel-title {
+  min-height: 43px !important; padding: 10px 14px !important;
+  background: rgba(25,36,48,.72) !important;
+  border-bottom: 1px solid #293846 !important;
+  color: #b9c5d1 !important; font-size: 10px !important;
+  font-weight: 650 !important; letter-spacing: .085em !important;
+}
+.panel-title button { border-radius: 6px !important; }
+.panel-title button:hover { background: #2a3947 !important; }
+.panel-content { padding: 3px; }
+.panel-content > * { min-width: 0; }
+.panel-close, .link-action { color: #8090a0 !important; }
+.link-action.selected { color: #d7a45d !important; }
+.single-view-content { padding: 18px 20px 28px; }
+.single-view-content > .terminal-panel { border-radius: 12px !important; }
+.view-context { gap: 10px !important; }
+.context-live { border: 1px solid #2a3946; background: #121c24; border-radius: 999px; padding: 6px 10px; color: #92a294; }
+.symbol-chip { border: 1px solid #354554 !important; border-radius: 6px !important; background: #18232d !important; color: #e3b979 !important; }
+table.data-table th { background: #17212b !important; color: #8797a7 !important; }
+table.data-table td { border-bottom-color: rgba(49,65,80,.55) !important; }
+table.data-table tbody tr:hover { background: #1a2834 !important; }
+input, select, textarea { background: #0e151d !important; border-color: #344554 !important; border-radius: 7px !important; }
+button.term-btn { border-radius: 7px !important; background: #1a2631 !important; border-color: #354655 !important; }
+button.term-btn:hover, button.term-btn.active { background: rgba(215,164,93,.12) !important; border-color: #8c693d !important; color: #e7bd83 !important; }
+.react-grid-item.react-grid-placeholder { background: #d7a45d !important; border-radius: 12px !important; }
+@media (max-width: 900px) {
+  .terminal-sidebar { width: 66px !important; min-width: 66px !important; max-width: 66px !important; padding: 12px 7px; }
+  .sidebar-heading, .sidebar-group, .sidebar-label, .sidebar-shortcut, .sidebar-live-mark, .sidebar-version { display: none !important; }
+  .sidebar-item { justify-content: center; padding: 8px 4px !important; }
+  .sidebar-icon { width: auto !important; }
+  .view-heading { padding: 18px 18px 16px !important; }
+  .overview-grid { padding: 10px !important; }
+}
+@media (max-width: 640px) {
+  .topbar { height: 56px; padding: 0 12px; gap: 10px; }
+  .view-heading h1 { font-size: 21px !important; }
+  .single-view-content { padding: 10px; }
+}
