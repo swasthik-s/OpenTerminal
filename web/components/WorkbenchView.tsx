@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent, type ChangeEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, apiPost, apiDelete } from "../lib/api";
 import { usePreferences } from "../store/preferences";
@@ -97,7 +97,7 @@ function parseHistoricalCsv(source: string) {
   const runAiTest = async () => { setAiTest({loading:true,message:"Testing AI provider credentials…"}); try { const result = await apiPost<{ok:boolean;model?:string;response?:string}>("/api/integrations/ai/test",{}); setAiTest({loading:false,ok:result.ok,message:result.ok ? "AI handshake succeeded · " + (result.model ?? "model") + " replied: " + (result.response ?? "OK") : "AI connection failed"}); } catch (error) { setAiTest({loading:false,ok:false,message:(error as Error).message}); } };
   const runAlpacaTest = async () => { setAlpacaTest({loading:true,message:"Checking server-side Alpaca credentials…"}); try { const result = await apiPost<{ok:boolean;paper:boolean;account?:{id?:string;status?:string;currency?:string;tradingBlocked?:boolean};error?:string}>("/api/integrations/alpaca/test",{}); setAlpacaTest({loading:false,ok:result.ok,message:result.ok ? "Account handshake succeeded · " + (result.paper ? "PAPER" : "LIVE") + " · " + (result.account?.status ?? "status unknown") + " · " + (result.account?.currency ?? "currency unknown") : "Connection failed"}); } catch (error) { setAlpacaTest({loading:false,ok:false,message:(error as Error).message}); } };
 
-  const importHistoricalCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const importHistoricalCsv = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = "";
     if (!file) return;
