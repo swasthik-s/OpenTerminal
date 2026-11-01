@@ -892,3 +892,33 @@ button.term-btn:hover, button.term-btn.active { background: rgba(215,164,93,.12)
   .view-heading h1 { font-size: 21px !important; }
   .single-view-content { padding: 10px; }
 }
+
+
+/* Quote monitor: clear price hierarchy and compact reference-data tiles. */
+.quote-overview { padding: 13px 14px 15px; }
+.quote-hero { padding: 2px 2px 15px; border-bottom: 1px solid #2a3947; }
+.quote-identity { display:flex; align-items:center; gap:9px; min-width:0; }
+.quote-symbol { color:#e6bd83; font-size:11px; font-weight:750; letter-spacing:.08em; }
+.quote-company { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#8999a9; font-size:11px; }
+.quote-price-line { display:flex; align-items:baseline; flex-wrap:wrap; gap:12px; margin-top:7px; }
+.quote-price { color:#edf2f6; font-size:clamp(25px,2.4vw,34px); font-weight:650; letter-spacing:-.055em; line-height:1.15; font-variant-numeric:tabular-nums; }
+.quote-change { font-size:12px; font-weight:650; font-variant-numeric:tabular-nums; }
+.quote-source { margin-top:7px; color:#718294; font-size:10px; }
+.quote-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:18px; padding-top:10px; }
+.quote-metric { display:flex; justify-content:space-between; align-items:center; gap:8px; min-width:0; padding:7px 1px; border-bottom:1px solid rgba(47,63,78,.55); }
+.quote-metric span { color:#8292a2; font-size:10px; }
+.quote-metric strong { color:#dce4ec; font-size:11px; font-weight:600; font-variant-numeric:tabular-nums; }
+.quote-metric-primary strong { color:#e9c28e; }
+.news-card { border-color:#2b3a48 !important; border-radius:9px !important; background:#141e28 !important; }
+.news-card-main { padding:14px 16px !important; }
+.news-meta { color:#8292a2 !important; }
+.news-headline { color:#e1e8ef !important; line-height:1.5 !important; }
+.news-headline:hover { color:#e7bd83 !important; }
+.news-ai-panel { border-top-color:#2b3a48 !important; background:#111a23 !important; }
+.news-toolbar { border-bottom-color:#293846 !important; }
+@media (max-width:520px) {
+  .quote-overview { padding:10px; }
+  .quote-metrics { column-gap:10px; }
+  .quote-metric span { font-size:9px; }
+  .quote-metric strong { font-size:10px; }
+}
