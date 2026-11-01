@@ -5,7 +5,7 @@ export type PaperOrder={id:string;symbol:string;side:"BUY"|"SELL";quantity:numbe
 export function getPaperAccount(){return db.prepare("SELECT * FROM paper_accounts WHERE id='ftmo-demo'").get() as any;}
 export function ensurePaperAccount(program:FtmoProgram,capital:number){
  if(!["1-step","2-step"].includes(program)||!Number.isFinite(capital)||capital<=0)throw new Error("Invalid paper account configuration");
- db.prepare("INSERT OR IGNORE INTO paper_accounts(id,firm,program,initial_capital,balance,equity,day_start_balance,highest_closed_balance,locked) VALUES('ftmo-demo','FTMO',?,?,?,?,?, ?,0)").run(program,capital,capital,capital,capital);
+ db.prepare("INSERT OR IGNORE INTO paper_accounts(id,firm,program,initial_capital,balance,equity,day_start_balance,highest_closed_balance,locked) VALUES('ftmo-demo','FTMO',?,?,?,?,?,?,0)").run(program,capital,capital,capital,capital,capital);
  const a=getPaperAccount();if(a.program!==program||a.initial_capital!==capital)throw new Error("Paper account already exists with different settings; reset it explicitly before reconfiguration");
  return a;
 }
