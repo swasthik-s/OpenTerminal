@@ -123,7 +123,7 @@ export default function Workspace() {
   const activeSymbol = useTerminal((s) => s.activeSymbol);
   const activeTab = useTerminal((s) => s.activeTab);
 
-  if (activeTab === "settings" || activeTab === "strategy" || activeTab === "backtest" || activeTab === "polymarket") return <WorkbenchView view={activeTab} />;
+  if (activeTab === "settings" || activeTab === "strategy" || activeTab === "backtest" || activeTab === "polymarket" || activeTab === "prop") return <WorkbenchView view={activeTab} />;
   if (activeTab !== "dashboard") return <SingleView type={activeTab} />;
 
   return (
