@@ -3,7 +3,7 @@
 import { useTerminal } from "../store/terminal";
 import AppIcon, { type IconName } from "./AppIcon";
 
-const GROUPS: { label: string; items: { type: "chart" | "watchlist" | "news" | "screener" | "strategy" | "backtest" | "polymarket" | "portfolio" | "settings"; title: string; icon: IconName }[] }[] = [
+const GROUPS: { label: string; items: { type: "chart" | "watchlist" | "news" | "screener" | "strategy" | "backtest" | "polymarket" | "prop" | "portfolio" | "settings"; title: string; icon: IconName }[] }[] = [
   { label: "MARKETS", items: [
     { type: "chart", title: "Charts", icon: "chart" },
     { type: "watchlist", title: "Watchlist", icon: "star" },
@@ -14,6 +14,7 @@ const GROUPS: { label: string; items: { type: "chart" | "watchlist" | "news" | "
     { type: "strategy", title: "Strategy builder", icon: "sliders" },
     { type: "backtest", title: "Backtest engine", icon: "activity" },
     { type: "polymarket", title: "Polymarket", icon: "globe" },
+    { type: "prop", title: "FTMO / cTrader", icon: "shield" },
   ]},
   { label: "ACCOUNT", items: [
     { type: "portfolio", title: "Portfolio", icon: "wallet" },
