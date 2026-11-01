@@ -1,0 +1,13 @@
+import {Router} from "express";
+import {ensurePaperAccount,getPaperAccount,assessPaperAccount,placePaperOrder,closePaperOrder,resetPaperAccount} from "../risk/paper.js";
+import {db} from "../db.js";
+import {assessFtmo} from "../risk/ftmo.js";
+export const propRouter=Router();
+propRouter.get("/status",(_req,res)=>{const a=getPaperAccount();if(!a)return res.json({configured:false,firm:"FTMO",platform:"cTrader",mode:"PAPER_ONLY",liveTradingEnabled:false});res.json({configured:true,account:a,assessment:assessPaperAccount(),platform:"cTrader",mode:"PAPER_ONLY",liveTradingEnabled:false});});
+propRouter.post("/paper/configure",(req,res)=>{try{const a=ensurePaperAccount(req.body?.program,Number(req.body?.capital??100000));res.status(201).json({account:a,liveTradingEnabled:false});}catch(e){res.status(400).json({error:(e as Error).message});}});
+propRouter.post("/paper/mark",(req,res)=>{try{const a=getPaperAccount();if(!a)return res.status(409).json({error:"Configure paper account first"});const equity=Number(req.body?.equity);if(!Number.isFinite(equity)||equity<0)return res.status(400).json({error:"Invalid equity"});db.prepare("UPDATE paper_accounts SET equity=? WHERE id='ftmo-demo'").run(equity);const risk=assessPaperAccount();if(risk.hardLock)db.prepare("UPDATE paper_accounts SET locked=1 WHERE id='ftmo-demo'").run();res.json({risk,locked:risk.hardLock});}catch(e){res.status(400).json({error:(e as Error).message});}});
+propRouter.post("/paper/orders",(req,res)=>{try{res.status(201).json(placePaperOrder(req.body));}catch(e){res.status(403).json({error:(e as Error).message});}});
+propRouter.post("/paper/orders/:id/close",(req,res)=>{try{res.json(closePaperOrder(req.params.id,Number(req.body?.exit)));}catch(e){res.status(400).json({error:(e as Error).message});}});
+propRouter.get("/paper/orders",(_req,res)=>res.json(db.prepare("SELECT * FROM paper_orders ORDER BY created_at DESC LIMIT 500").all()));
+propRouter.post("/paper/reset",(req,res)=>{if(req.body?.confirm!=="RESET_DEMO_PAPER_ACCOUNT")return res.status(400).json({error:"Explicit reset confirmation required"});resetPaperAccount();res.json({ok:true,liveTradingEnabled:false});});
+propRouter.post("/risk/evaluate",(req,res)=>{try{res.json(assessFtmo(req.body));}catch(e){res.status(400).json({error:(e as Error).message});}});
