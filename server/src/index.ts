@@ -8,59 +8,18 @@ import { allStats } from "./providers/registry.js";
 import { requireApiKey } from "./auth.js";
 import { rateLimit } from "./rateLimit.js";
 import { integrationsRouter } from "./routes/integrations.js";
-
-const app = express();
-
-// Off by default: req.ip then falls back to the immediate socket address
-// (the bundled web proxy's own address when called through it), so every
-// caller behind that proxy shares one rate-limit bucket — safe, if coarser
-// than per-browser. Only set TRUST_PROXY=1 if you know exactly one trusted
-// reverse proxy sits in front of this process (the bundled web proxy alone,
-// or your own proxy in front of it that itself sets X-Forwarded-For from
-// the real client and doesn't let callers inject their own value) —
-// otherwise a caller can forge X-Forwarded-For to dodge the rate limit.
-if (process.env.TRUST_PROXY === "1") {
-  app.set("trust proxy", 1);
-}
-
-// Only the configured web origin may call this API from a browser. Without
-// this, any website open in the same browser as the terminal could reach a
-// server bound beyond localhost — cors() with no options reflects every
-// origin.
-const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
-app.use(cors({ origin: webOrigin }));
-app.use(express.json({ limit: "1mb" }));
-
-app.use("/api/integrations", requireApiKey, rateLimit({ windowMs: 60_000, max: 30 }), integrationsRouter);
-
-// No API key here by design (market.ts routes proxy free, keyless public data),
-// but still bounded per-IP to protect upstream public-data providers.
-app.use("/api", rateLimit({ windowMs: 60_000, max: 240 }), marketRouter);
-
-// Authenticated endpoints that can expose or mutate account-related data.
-app.use("/api/portfolios", requireApiKey, portfolioRouter);
-app.use("/api/rules", requireApiKey, rateLimit({ windowMs: 60_000, max: 60 }), rulesRouter);
-app.use(
-  "/api/ai",
-  requireApiKey,
-  rateLimit({ windowMs: 60_000, max: 10 }),
-  aiRouter
-);
-
-app.get("/api/status", (_req, res) => {
-  res.json({
-    ok: true,
-    time: new Date().toISOString(),
-    providers: allStats(),
-    ai: Boolean(process.env.ANTHROPIC_API_KEY),
-  });
-});
-
-const PORT = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);
-// Bind to localhost by default so cloning and running this never exposes an
-// unauthenticated-by-default API to the network. Set API_HOST=0.0.0.0 (and
-// API_KEY + WEB_ORIGIN) to intentionally expose it beyond this machine.
-const HOST = process.env.API_HOST ?? "127.0.0.1";
-app.listen(PORT, HOST, () => {
-  console.log(`OpenTerminal API listening on http://${HOST}:${PORT}`);
-});
+import { backtestRouter } from "./routes/backtests.js";
+const app=express();
+if(process.env.TRUST_PROXY==="1")app.set("trust proxy",1);
+const webOrigin=process.env.WEB_ORIGIN??"http://localhost:3000";
+app.use(cors({origin:webOrigin}));
+app.use(express.json({limit:"1mb"}));
+app.use("/api/integrations",requireApiKey,rateLimit({windowMs:60000,max:30}),integrationsRouter);
+app.use("/api",rateLimit({windowMs:60000,max:240}),marketRouter);
+app.use("/api/portfolios",requireApiKey,portfolioRouter);
+app.use("/api/rules",requireApiKey,rateLimit({windowMs:60000,max:60}),rulesRouter);
+app.use("/api/backtests",requireApiKey,rateLimit({windowMs:60000,max:20}),backtestRouter);
+app.use("/api/ai",requireApiKey,rateLimit({windowMs:60000,max:10}),aiRouter);
+app.get("/api/status",(_req,res)=>res.json({ok:true,time:new Date().toISOString(),providers:allStats(),ai:Boolean(process.env.ANTHROPIC_API_KEY)}));
+const PORT=Number(process.env.PORT??process.env.API_PORT??4000),HOST=process.env.API_HOST??"127.0.0.1";
+app.listen(PORT,HOST,()=>console.log("OpenTerminal API listening on http://"+HOST+":"+PORT));
