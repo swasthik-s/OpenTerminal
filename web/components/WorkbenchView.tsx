@@ -197,5 +197,3 @@ function PropFirmView() {
   </section>;
 }
 
-  if (view === "prop") return <PropFirmView />;
-
