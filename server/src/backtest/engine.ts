@@ -31,7 +31,7 @@ export function runEmaPullbackBacktest(bars:Candle[],c:BacktestConfig):BacktestR
   }
   const floating=position?(b.close-position.entry)*position.units*(position.side==="long"?1:-1):0;const current=balance+floating;peak=Math.max(peak,current);const dd=peak-current;maxDd=Math.max(maxDd,dd);if(peak>0)maxDdPct=Math.max(maxDdPct,dd/peak*100);equity.push({time:b.time,equity:current});
  }
- if(position)closePosition(bars[bars.length-1],bars[bars.length-1].close,"end");
+ if(position)closePosition(bars[bars.length-1],bars[bars.length-1].close,"end");\n equity[equity.length-1]={time:bars[bars.length-1].time,equity:balance};
  const wins=trades.filter(t=>t.pnl>0),losses=trades.filter(t=>t.pnl<0),grossWin=wins.reduce((s,t)=>s+t.pnl,0),grossLoss=Math.abs(losses.reduce((s,t)=>s+t.pnl,0)),netPnl=balance-c.initialBalance,finalPeak=Math.max(peak,balance),finalDd=finalPeak-balance;
  maxDd=Math.max(maxDd,finalDd);if(finalPeak>0)maxDdPct=Math.max(maxDdPct,finalDd/finalPeak*100);
  return {config:c,trades,initialBalance:c.initialBalance,finalBalance:balance,netPnl,returnPct:netPnl/c.initialBalance*100,winRate:trades.length?wins.length/trades.length*100:0,profitFactor:grossLoss?grossWin/grossLoss:grossWin?null:0,maxDrawdown:maxDd,maxDrawdownPct:maxDdPct,expectancyR:trades.length?trades.reduce((s,t)=>s+t.rMultiple,0)/trades.length:0,totalTrades:trades.length,wins:wins.length,losses:losses.length,equity};
