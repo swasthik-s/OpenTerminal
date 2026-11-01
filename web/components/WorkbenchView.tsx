@@ -56,7 +56,16 @@ export default function WorkbenchView({ view }: { view: View }) {
   const runAiTest = async () => { setAiTest({loading:true,message:"Testing AI provider credentials…"}); try { const result = await apiPost<{ok:boolean;model?:string;response?:string}>("/api/integrations/ai/test",{}); setAiTest({loading:false,ok:result.ok,message:result.ok ? "AI handshake succeeded · " + (result.model ?? "model") + " replied: " + (result.response ?? "OK") : "AI connection failed"}); } catch (error) { setAiTest({loading:false,ok:false,message:(error as Error).message}); } };
   const runAlpacaTest = async () => { setAlpacaTest({loading:true,message:"Checking server-side Alpaca credentials…"}); try { const result = await apiPost<{ok:boolean;paper:boolean;account?:{id?:string;status?:string;currency?:string;tradingBlocked?:boolean};error?:string}>("/api/integrations/alpaca/test",{}); setAlpacaTest({loading:false,ok:result.ok,message:result.ok ? "Account handshake succeeded · " + (result.paper ? "PAPER" : "LIVE") + " · " + (result.account?.status ?? "status unknown") + " · " + (result.account?.currency ?? "currency unknown") : "Connection failed"}); } catch (error) { setAlpacaTest({loading:false,ok:false,message:(error as Error).message}); } };
 
-  const runBacktest = async () => {\n    setBacktestBusy(true); setEngineNotice(""); setBacktestResult(null);\n    try {\n      const response = await apiPost<any>("/api/backtests/run", { symbol: market.toUpperCase(), timeframe, config: { initialBalance: Number(initialCapital), riskPct: Number(risk), rewardRisk: Number(rr), fastEma: 50, slowEma: 200, maxTradesPerDay: 2, spread: 0, slippage: 0, commissionPerUnit: 0 } });\n      setBacktestResult(response);\n    } catch (error) { setEngineNotice((error as Error).message + " Historical candles must first be imported for the exact symbol and timeframe. No synthetic data will be used."); }\n    finally { setBacktestBusy(false); }\n  };\n\n  const spec = useMemo(() => [
+  const runBacktest = async () => {
+    setBacktestBusy(true); setEngineNotice(""); setBacktestResult(null);
+    try {
+      const response = await apiPost<any>("/api/backtests/run", { symbol: market.toUpperCase(), timeframe, config: { initialBalance: Number(initialCapital), riskPct: Number(risk), rewardRisk: Number(rr), fastEma: 50, slowEma: 200, maxTradesPerDay: 2, spread: 0, slippage: 0, commissionPerUnit: 0 } });
+      setBacktestResult(response);
+    } catch (error) { setEngineNotice((error as Error).message + " Historical candles must first be imported for the exact symbol and timeframe. No synthetic data will be used."); }
+    finally { setBacktestBusy(false); }
+  };
+
+  const spec = useMemo(() => [
     `Strategy: ${strategyName || "Untitled strategy"}`,
     `Instrument: ${market} · Timeframe: ${timeframe}`,
     `Trend filter: ${trend}`,
