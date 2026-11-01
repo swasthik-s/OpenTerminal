@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { normalizeSymbol } from "../lib/symbol";
 
-export type AppView = "settings" | "strategy" | "backtest" | "polymarket";
+export type AppView = "settings" | "strategy" | "backtest" | "polymarket" | "prop";
 
 export type WidgetType =
   | "quote"
