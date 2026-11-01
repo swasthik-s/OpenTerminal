@@ -3,9 +3,120 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { db } from "../db.js";
 import { runEmaPullbackBacktest, validateCandles } from "../backtest/engine.js";
-export const backtestRouter=Router();
-const configSchema=z.object({initialBalance:z.number().positive().max(10000000),riskPct:z.number().positive().max(1),rewardRisk:z.number().min(.5).max(10),fastEma:z.number().int().min(2).max(200),slowEma:z.number().int().min(3).max(500),maxTradesPerDay:z.number().int().min(1).max(20),spread:z.number().min(0).max(1000),slippage:z.number().min(0).max(1000),commissionPerUnit:z.number().min(0).max(1000)});
-backtestRouter.post("/candles",(req,res)=>{const symbol=String(req.body?.symbol??"").trim().toUpperCase(),timeframe=String(req.body?.timeframe??"").trim().toUpperCase();if(!/^[A-Z0-9._-]{2,24}$/.test(symbol)||!/^(M1|M5|M15|M30|H1|H4|D1)$/.test(timeframe))return res.status(400).json({error:"Valid symbol and timeframe are required."});let bars;try{bars=validateCandles(req.body?.candles);}catch(e){return res.status(400).json({error:(e as Error).message});}if(bars.length>5000)return res.status(413).json({error:"Import at most 5,000 candles per request."});const insert=db.prepare("INSERT OR REPLACE INTO historical_bars(symbol,timeframe,time,open,high,low,close,volume) VALUES(?,?,?,?,?,?,?,?)");const tx=db.transaction((rows:any[])=>{for(const b of rows)insert.run(symbol,timeframe,b.time,b.open,b.high,b.low,b.close,b.volume??null);});tx(bars);res.json({ok:true,symbol,timeframe,received:bars.length,firstTime:bars[0].time,lastTime:bars[bars.length-1].time});});
-backtestRouter.post("/run",(req,res)=>{const symbol=String(req.body?.symbol??"").trim().toUpperCase(),timeframe=String(req.body?.timeframe??"").trim().toUpperCase();if(!/^[A-Z0-9._-]{2,24}$/.test(symbol)||!/^(M1|M5|M15|M30|H1|H4|D1)$/.test(timeframe))return res.status(400).json({error:"Valid symbol and timeframe are required."});const parsed=configSchema.safeParse(req.body?.config);if(!parsed.success)return res.status(400).json({error:"Invalid backtest configuration.",details:parsed.error.flatten()});const rows=db.prepare("SELECT time,open,high,low,close,volume FROM historical_bars WHERE symbol=? AND timeframe=? ORDER BY time ASC LIMIT 100000").all(symbol,timeframe);if(rows.length<250)return res.status(404).json({error:"At least 250 stored candles are required. Import historical data first.",availableCandles:rows.length});try{const result=runEmaPullbackBacktest(rows as any,parsed.data);const id=randomUUID();db.prepare("INSERT INTO backtest_runs(id,symbol,timeframe,strategy,config_json,result_json) VALUES(?,?,?,?,?,?)").run(id,symbol,timeframe,"ema-pullback-v1",JSON.stringify(parsed.data),JSON.stringify(result));res.json({id,symbol,timeframe,strategy:"ema-pullback-v1",data:{candles:rows.length,from:(rows[0] as any).time,to:(rows[rows.length-1] as any).time},result});}catch(e){res.status(400).json({error:(e as Error).message});}});
-backtestRouter.get("/runs",(_req,res)=>res.json(db.prepare("SELECT id,symbol,timeframe,strategy,created_at FROM backtest_runs ORDER BY created_at DESC LIMIT 100").all()));
-backtestRouter.get("/runs/:id",(req,res)=>{const row=db.prepare("SELECT * FROM backtest_runs WHERE id=?").get(req.params.id) as any;if(!row)return res.status(404).json({error:"Backtest run not found."});res.json({...row,config:JSON.parse(row.config_json),result:JSON.parse(row.result_json)});});
+
+export const backtestRouter = Router();
+const configSchema = z.object({
+  initialBalance: z.number().positive().max(10_000_000),
+  riskPct: z.number().positive().max(1),
+  rewardRisk: z.number().min(0.5).max(10),
+  fastEma: z.number().int().min(2).max(200),
+  slowEma: z.number().int().min(3).max(500),
+  maxTradesPerDay: z.number().int().min(1).max(20),
+  spread: z.number().min(0).max(1000),
+  slippage: z.number().min(0).max(1000),
+  commissionPerUnit: z.number().min(0).max(1000),
+});
+const symbolSchema = z.string().trim().toUpperCase().regex(/^[A-Z0-9._-]{2,24}$/);
+const timeframeSchema = z.enum(["M1", "M5", "M15", "M30", "H1", "H4", "D1"]);
+
+backtestRouter.get("/candles/:symbol", (req, res) => {
+  const symbol = symbolSchema.safeParse(req.params.symbol);
+  const timeframe = timeframeSchema.safeParse(req.query.timeframe);
+  if (!symbol.success || !timeframe.success) {
+    return res.status(400).json({ error: "Valid symbol and timeframe are required." });
+  }
+  const row = db.prepare(`
+    SELECT COUNT(*) AS count, MIN(time) AS firstTime, MAX(time) AS lastTime
+    FROM historical_bars WHERE symbol=? AND timeframe=?
+  `).get(symbol.data, timeframe.data) as { count: number; firstTime: number | null; lastTime: number | null };
+  res.json({ symbol: symbol.data, timeframe: timeframe.data, ...row });
+});
+
+backtestRouter.post("/candles", (req, res) => {
+  const symbol = symbolSchema.safeParse(req.body?.symbol);
+  const timeframe = timeframeSchema.safeParse(req.body?.timeframe);
+  if (!symbol.success || !timeframe.success) {
+    return res.status(400).json({ error: "Valid symbol and timeframe are required." });
+  }
+  let bars;
+  try {
+    bars = validateCandles(req.body?.candles);
+  } catch (error) {
+    return res.status(400).json({ error: (error as Error).message });
+  }
+  if (bars.length > 5000) {
+    return res.status(413).json({ error: "Import at most 5,000 candles per request." });
+  }
+  const insert = db.prepare(`
+    INSERT OR REPLACE INTO historical_bars
+    (symbol,timeframe,time,open,high,low,close,volume) VALUES(?,?,?,?,?,?,?,?)
+  `);
+  const transaction = db.transaction((rows: typeof bars) => {
+    for (const bar of rows) {
+      insert.run(symbol.data, timeframe.data, bar.time, bar.open, bar.high, bar.low, bar.close, bar.volume ?? null);
+    }
+  });
+  transaction(bars);
+  res.json({
+    ok: true,
+    symbol: symbol.data,
+    timeframe: timeframe.data,
+    received: bars.length,
+    firstTime: bars[0].time,
+    lastTime: bars[bars.length - 1].time,
+  });
+});
+
+backtestRouter.post("/run", (req, res) => {
+  const symbol = symbolSchema.safeParse(req.body?.symbol);
+  const timeframe = timeframeSchema.safeParse(req.body?.timeframe);
+  if (!symbol.success || !timeframe.success) {
+    return res.status(400).json({ error: "Valid symbol and timeframe are required." });
+  }
+  const parsed = configSchema.safeParse(req.body?.config);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid backtest configuration.", details: parsed.error.flatten() });
+  }
+  const rows = db.prepare(`
+    SELECT time,open,high,low,close,volume FROM historical_bars
+    WHERE symbol=? AND timeframe=? ORDER BY time ASC LIMIT 100000
+  `).all(symbol.data, timeframe.data);
+  if (rows.length < 250) {
+    return res.status(404).json({
+      error: "At least 250 stored candles are required. Import historical data first.",
+      availableCandles: rows.length,
+    });
+  }
+  try {
+    const result = runEmaPullbackBacktest(rows as any, parsed.data);
+    const id = randomUUID();
+    db.prepare(`
+      INSERT INTO backtest_runs(id,symbol,timeframe,strategy,config_json,result_json)
+      VALUES(?,?,?,?,?,?)
+    `).run(id, symbol.data, timeframe.data, "ema-pullback-v1", JSON.stringify(parsed.data), JSON.stringify(result));
+    res.json({
+      id,
+      symbol: symbol.data,
+      timeframe: timeframe.data,
+      strategy: "ema-pullback-v1",
+      data: {
+        candles: rows.length,
+        from: (rows[0] as any).time,
+        to: (rows[rows.length - 1] as any).time,
+      },
+      result,
+    });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+backtestRouter.get("/runs", (_req, res) => {
+  res.json(db.prepare("SELECT id,symbol,timeframe,strategy,created_at FROM backtest_runs ORDER BY created_at DESC LIMIT 100").all());
+});
+
+backtestRouter.get("/runs/:id", (req, res) => {
+  const row = db.prepare("SELECT * FROM backtest_runs WHERE id=?").get(req.params.id) as any;
+  if (!row) return res.status(404).json({ error: "Backtest run not found." });
+  res.json({ ...row, config: JSON.parse(row.config_json), result: JSON.parse(row.result_json) });
+});
