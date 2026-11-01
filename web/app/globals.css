@@ -761,3 +761,10 @@ button, input, select, textarea { letter-spacing: normal; }
 table.data-table { font-variant-numeric: tabular-nums; }
 
 .prop-status-strip{display:flex;gap:9px;flex-wrap:wrap;margin:-10px 0 22px}.prop-config{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}.prop-config label,.prop-order-form label{display:flex;flex-direction:column;gap:7px;color:#aaa;font-size:12px}.prop-metrics,.prop-risk{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.prop-metrics article,.prop-risk>div{padding:17px;border:1px solid #29251f;background:#050505;display:flex;flex-direction:column;gap:8px}.prop-metrics span,.prop-risk span{font-size:10px;color:#80796e;letter-spacing:.08em}.prop-metrics strong,.prop-risk strong{font-size:17px;color:#e5dfd3}.prop-risk{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:10px}.prop-risk strong.up{color:#48d6a0}.prop-risk strong.down{color:#ff7887}.prop-order-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end;padding:16px;border:1px solid #292929;background:#050505}.prop-order-form button{grid-column:1/-1;justify-self:start}.prop-orders-table{margin-top:14px;overflow:auto}.prop-warning{margin-top:24px;padding:14px;border:1px solid #49351d;background:#0b0804;color:#c49b60;font-size:11px;line-height:1.7}.prop-orders-table .integration-loading{padding:14px}@media(max-width:850px){.prop-config,.prop-metrics,.prop-risk,.prop-order-form{grid-template-columns:1fr 1fr}}@media(max-width:560px){.prop-config,.prop-metrics,.prop-risk,.prop-order-form{grid-template-columns:1fr}}
+
+
+/* Workbench pages use the workspace viewport as their single vertical scroll container. */
+.workspace-view { min-height: 0; overflow-x: hidden; overflow-y: auto; }
+.workbench-page { min-height: 100%; height: auto; overflow: visible; }
+.workbench-page > * { min-width: 0; }
+.strategy-layout, .backtest-config, .setup-grid, .preferences-grid { min-width: 0; }
