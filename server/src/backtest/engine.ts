@@ -6,7 +6,7 @@ const finite=(n:number)=>Number.isFinite(n);
 export function validateCandles(input:unknown):Candle[]{
  if(!Array.isArray(input)||input.length<250||input.length>100000)throw new Error("Provide between 250 and 100,000 candles.");
  const bars=input.map((r:any)=>({time:Number(r.time),open:Number(r.open),high:Number(r.high),low:Number(r.low),close:Number(r.close),...(r.volume===undefined?{}:{volume:Number(r.volume)})}));
- for(let i=0;i<bars.length;i++){const b=bars[i];if(![b.time,b.open,b.high,b.low,b.close].every(finite)||b.time<=0||b.open<=0||b.high<=0||b.low<=0||b.close<=0||b.high<Math.max(b.open,b.close,b.low)||b.low>Math.min(b.open,b.close,b.high)||(i>0&&b.time<=bars[i-1].time))throw new Error("Invalid or unsorted candle at index "+i+".");}
+ for(let i=0;i<bars.length;i++){const b=bars[i];if(![b.time,b.open,b.high,b.low,b.close,...(b.volume===undefined?[]:[b.volume])].every(finite)||b.time<=0||b.open<=0||b.high<=0||b.low<=0||b.close<=0||b.high<Math.max(b.open,b.close,b.low)||b.low>Math.min(b.open,b.close,b.high)||(i>0&&b.time<=bars[i-1].time))throw new Error("Invalid or unsorted candle at index "+i+".");}
  return bars;
 }
 export function ema(values:number[],period:number):Array<number|null>{
@@ -21,13 +21,13 @@ export function runEmaPullbackBacktest(bars:Candle[],c:BacktestConfig):BacktestR
  const fast=ema(bars.map(b=>b.close),c.fastEma),slow=ema(bars.map(b=>b.close),c.slowEma);
  let balance=c.initialBalance,peak=balance,maxDd=0,maxDdPct=0,position:Trade|null=null,day="",tradesToday=0;
  const trades:Trade[]=[],equity=[{time:bars[0].time,equity:balance}];
- const closePosition=(bar:Candle,raw:number,reason:Trade["exitReason"])=>{if(!position)return;const exit=raw-(position.side==="long"?c.slippage:-c.slippage);const gross=(exit-position.entry)*position.units*(position.side==="long"?1:-1);const pnl=gross-position.units*c.commissionPerUnit*2;const risk=Math.abs(position.entry-position.stop)*position.units+position.units*c.commissionPerUnit*2;position.exit=exit;position.exitTime=bar.time;position.pnl=pnl;position.rMultiple=risk>0?pnl/risk:0;position.exitReason=reason;balance+=pnl;trades.push(position);position=null;};
+ const closePosition=(bar:Candle,raw:number,reason:Trade["exitReason"])=>{if(!position)return;const exit=raw-(position.side==="long"?c.slippage:-c.slippage);const gross=(exit-position.entry)*position.units*(position.side==="long"?1:-1);const pnl=gross-position.units*c.commissionPerUnit*2;const risk=(Math.abs(position.entry-position.stop)+c.slippage+c.commissionPerUnit*2)*position.units;position.exit=exit;position.exitTime=bar.time;position.pnl=pnl;position.rMultiple=risk>0?pnl/risk:0;position.exitReason=reason;balance+=pnl;trades.push(position);position=null;};
  for(let i=1;i<bars.length;i++){const b=bars[i],prev=bars[i-1],d=new Date(b.time*1000).toISOString().slice(0,10);if(d!==day){day=d;tradesToday=0;}
   if(position){const stop=position.side==="long"?b.low<=position.stop:b.high>=position.stop;const target=position.side==="long"?b.high>=position.target:b.low<=position.target;if(stop)closePosition(b,position.stop,"stop");else if(target)closePosition(b,position.target,"target");}
   if(!position&&tradesToday<c.maxTradesPerDay&&fast[i-1]!==null&&slow[i]!==null&&fast[i]!==null&&i>=c.slowEma+2){
    const isLong=prev.low<=fast[i-1]!&&b.close>fast[i]!&&b.close>b.open&&b.close>slow[i]!;
    const isShort=prev.high>=fast[i-1]!&&b.close<fast[i]!&&b.close<b.open&&b.close<slow[i]!;
-   if(isLong||isShort){const side=isLong?"long":"short";const window=bars.slice(Math.max(0,i-5),i+1);const stop=side==="long"?Math.min(...window.map(x=>x.low)):Math.max(...window.map(x=>x.high));const entry=b.close+(side==="long"?1:-1)*(c.spread/2+c.slippage);const distance=Math.abs(entry-stop);const units=distance>0?balance*c.riskPct/100/distance:0;if(units>0&&finite(units)){const target=entry+(side==="long"?1:-1)*distance*c.rewardRisk;position={entryTime:b.time,exitTime:0,side,entry,exit:entry,stop,target,units,pnl:0,rMultiple:0,exitReason:"end"};tradesToday++;}}
+   if(isLong||isShort){const side=isLong?"long":"short";const window=bars.slice(Math.max(0,i-5),i+1);const stop=side==="long"?Math.min(...window.map(x=>x.low)):Math.max(...window.map(x=>x.high));const entry=b.close+(side==="long"?1:-1)*(c.spread/2+c.slippage);const distance=Math.abs(entry-stop);const riskPerUnit=distance+c.slippage+c.commissionPerUnit*2;const units=riskPerUnit>0?balance*c.riskPct/100/riskPerUnit:0;if(units>0&&finite(units)){const target=entry+(side==="long"?1:-1)*distance*c.rewardRisk;position={entryTime:b.time,exitTime:0,side,entry,exit:entry,stop,target,units,pnl:0,rMultiple:0,exitReason:"end"};tradesToday++;}}
   }
   const floating=position?(b.close-position.entry)*position.units*(position.side==="long"?1:-1):0;const current=balance+floating;peak=Math.max(peak,current);const dd=peak-current;maxDd=Math.max(maxDd,dd);if(peak>0)maxDdPct=Math.max(maxDdPct,dd/peak*100);equity.push({time:b.time,equity:current});
  }
