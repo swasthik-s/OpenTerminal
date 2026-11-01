@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS transactions(id INTEGER PRIMARY KEY AUTOINCREMENT,por
 CREATE TABLE IF NOT EXISTS historical_bars(symbol TEXT NOT NULL,timeframe TEXT NOT NULL,time INTEGER NOT NULL,open REAL NOT NULL,high REAL NOT NULL,low REAL NOT NULL,close REAL NOT NULL,volume REAL,PRIMARY KEY(symbol,timeframe,time));
 CREATE INDEX IF NOT EXISTS idx_historical_bars_lookup ON historical_bars(symbol,timeframe,time);
 CREATE TABLE IF NOT EXISTS backtest_runs(id TEXT PRIMARY KEY,symbol TEXT NOT NULL,timeframe TEXT NOT NULL,strategy TEXT NOT NULL,config_json TEXT NOT NULL,result_json TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT(datetime('now')));
+CREATE TABLE IF NOT EXISTS paper_accounts(id TEXT PRIMARY KEY,firm TEXT NOT NULL,program TEXT NOT NULL,initial_capital REAL NOT NULL,balance REAL NOT NULL,equity REAL NOT NULL,day_start_balance REAL NOT NULL,highest_closed_balance REAL NOT NULL,locked INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS paper_orders(id TEXT PRIMARY KEY,symbol TEXT NOT NULL,side TEXT NOT NULL,quantity REAL NOT NULL,entry REAL NOT NULL,stop REAL NOT NULL,target REAL NOT NULL,status TEXT NOT NULL,pnl REAL NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT(datetime('now')),closed_at TEXT);
 CREATE TABLE IF NOT EXISTS strategy_experiments(id TEXT PRIMARY KEY,name TEXT NOT NULL,hypothesis TEXT NOT NULL,strategy TEXT NOT NULL,config_json TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'draft',notes TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL DEFAULT(datetime('now')),updated_at TEXT NOT NULL DEFAULT(datetime('now')));
 `);
 if(!db.prepare("SELECT id FROM portfolios LIMIT 1").get())db.prepare("INSERT INTO portfolios(name) VALUES(?)").run("Main");
