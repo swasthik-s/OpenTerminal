@@ -12,7 +12,48 @@ type RssFeed = { id:number; url:string; label:string; enabled:number; createdAt:
 type ProviderStatus = { name:string; ok:number; failed:number; lastLatencyMs:number|null; lastError:string|null; lastSuccess:string|null };
 type PolyMarket = { question?: string; slug?: string; volume24hr?: number | string; volume_24hr?: number | string; volume?: number | string; liquidity?: number | string; outcomePrices?: string; outcome_prices?: string; active?: boolean; closed?: boolean; endDate?: string; end_date?: string };
 
-export default function WorkbenchView({ view }: { view: View }) {
+
+function parseHistoricalCsv(source: string) {
+  const lines = source.replace(/^\\uFEFF/, "").split(/\\r?\\n/).map(line => line.trim()).filter(Boolean);
+  if (lines.length < 2) throw new Error("CSV must contain a header and at least one data row.");
+  const split = (line: string) => line.split(",").map(value => value.trim().replace(/^["']|["']$/g, ""));
+  const first = split(lines[0]).map(value => value.toLowerCase().replace(/[ _-]/g, ""));
+  const hasHeader = first.some(value => ["time", "timestamp", "date", "datetime"].includes(value));
+  const headers = hasHeader ? first : ["time", "open", "high", "low", "close", "volume"];
+  const index = (names: string[]) => headers.findIndex(value => names.includes(value));
+  const timeIndex = index(["time", "timestamp", "date", "datetime"]);
+  const openIndex = index(["open", "o"]);
+  const highIndex = index(["high", "h"]);
+  const lowIndex = index(["low", "l"]);
+  const closeIndex = index(["close", "c", "adjclose"]);
+  const volumeIndex = index(["volume", "vol", "v"]);
+  if ([timeIndex, openIndex, highIndex, lowIndex, closeIndex].some(value => value < 0)) {
+    throw new Error("CSV needs time/date, open, high, low and close columns.");
+  }
+  const candles = lines.slice(hasHeader ? 1 : 0).map((line, rowIndex) => {
+    const values = split(line);
+    const rawTime = values[timeIndex];
+    const numericTime = Number(rawTime);
+    const parsedTime = rawTime && Number.isFinite(numericTime)
+      ? (numericTime > 1e12 ? Math.floor(numericTime / 1000) : Math.floor(numericTime))
+      : Math.floor(new Date(rawTime).getTime() / 1000);
+    const candle = {
+      time: parsedTime,
+      open: Number(values[openIndex]),
+      high: Number(values[highIndex]),
+      low: Number(values[lowIndex]),
+      close: Number(values[closeIndex]),
+      ...(volumeIndex >= 0 && values[volumeIndex] !== undefined ? { volume: Number(values[volumeIndex]) } : {}),
+    };
+    if (![candle.time, candle.open, candle.high, candle.low, candle.close].every(Number.isFinite)) {
+      throw new Error("Invalid numeric value or timestamp on CSV data row " + (rowIndex + 1) + ".");
+    }
+    return candle;
+  });
+  candles.sort((a, b) => a.time - b.time);
+  return candles;
+}
+\nexport default function WorkbenchView({ view }: { view: View }) {
   const [strategyName, setStrategyName] = useState("EMA Pullback");
   const [market, setMarket] = useState("XAUUSD");
   const [timeframe, setTimeframe] = useState("M15");
@@ -27,7 +68,7 @@ export default function WorkbenchView({ view }: { view: View }) {
   const [dateTo, setDateTo] = useState("2026-10-29");
   const [engineNotice, setEngineNotice] = useState("");
   const [backtestBusy, setBacktestBusy] = useState(false);
-  const [backtestResult, setBacktestResult] = useState<any>(null);
+  const [backtestResult, setBacktestResult] = useState<any>(null);\n  const [importBusy, setImportBusy] = useState(false);\n  const [importNotice, setImportNotice] = useState("");
   const [saved, setSaved] = useState(false);
   const [polySearch, setPolySearch] = useState("");
   const [rssUrl, setRssUrl] = useState("");
@@ -52,9 +93,26 @@ export default function WorkbenchView({ view }: { view: View }) {
   const rssQuery = useQuery({ queryKey: ["rss-feeds"], queryFn: () => apiGet<RssFeed[]>("/api/integrations/rss-feeds"), enabled: view === "settings" });
   const addRssFeed = async (event: FormEvent) => { event.preventDefault(); if (!rssUrl.trim()) return; setRssBusy(true); setRssNotice(""); try { await apiPost("/api/integrations/rss-feeds", { url: rssUrl.trim(), label: rssLabel.trim() || undefined }); setRssUrl(""); setRssLabel(""); setRssNotice("Feed validated and saved. It will appear in news results."); await Promise.all([rssQuery.refetch(), integrationsQuery.refetch()]); } catch (error) { setRssNotice((error as Error).message); } finally { setRssBusy(false); } };
   const removeRssFeed = async (id:number) => { try { await apiDelete("/api/integrations/rss-feeds/" + id); await Promise.all([rssQuery.refetch(), integrationsQuery.refetch()]); setRssNotice("RSS feed removed."); } catch (error) { setRssNotice((error as Error).message); } };
-  const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: () => apiGet<{fetchedAt:string; count:number; markets:PolyMarket[]}>("/api/polymarket/markets"), enabled: view === "polymarket", refetchInterval: refreshSeconds * 1000, staleTime: 10_000 });
+  const candleStatusQuery = useQuery({ queryKey: ["backtest-candle-status", market, timeframe], queryFn: () => apiGet<{symbol:string;timeframe:string;count:number;firstTime:number|null;lastTime:number|null}>("/api/backtests/candles/" + encodeURIComponent(market) + "?timeframe=" + timeframe), enabled: view === "backtest" });\n  const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: () => apiGet<{fetchedAt:string; count:number; markets:PolyMarket[]}>("/api/polymarket/markets"), enabled: view === "polymarket", refetchInterval: refreshSeconds * 1000, staleTime: 10_000 });
   const runAiTest = async () => { setAiTest({loading:true,message:"Testing AI provider credentials…"}); try { const result = await apiPost<{ok:boolean;model?:string;response?:string}>("/api/integrations/ai/test",{}); setAiTest({loading:false,ok:result.ok,message:result.ok ? "AI handshake succeeded · " + (result.model ?? "model") + " replied: " + (result.response ?? "OK") : "AI connection failed"}); } catch (error) { setAiTest({loading:false,ok:false,message:(error as Error).message}); } };
   const runAlpacaTest = async () => { setAlpacaTest({loading:true,message:"Checking server-side Alpaca credentials…"}); try { const result = await apiPost<{ok:boolean;paper:boolean;account?:{id?:string;status?:string;currency?:string;tradingBlocked?:boolean};error?:string}>("/api/integrations/alpaca/test",{}); setAlpacaTest({loading:false,ok:result.ok,message:result.ok ? "Account handshake succeeded · " + (result.paper ? "PAPER" : "LIVE") + " · " + (result.account?.status ?? "status unknown") + " · " + (result.account?.currency ?? "currency unknown") : "Connection failed"}); } catch (error) { setAlpacaTest({loading:false,ok:false,message:(error as Error).message}); } };
+
+  const importHistoricalCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!file) return;
+    setImportBusy(true); setImportNotice(""); setEngineNotice(""); setBacktestResult(null);
+    try {
+      if (file.size > 5_000_000) throw new Error("CSV file must be 5 MB or smaller.");
+      const candles = parseHistoricalCsv(await file.text());
+      if (candles.length > 5000) throw new Error("Import at most 5,000 candles per file.");
+      const result = await apiPost<{received:number;firstTime:number;lastTime:number}>("/api/backtests/candles", { symbol: market.toUpperCase(), timeframe, candles });
+      setImportNotice("Imported " + result.received.toLocaleString() + " candles. Dataset is stored on the API server for this symbol/timeframe.");
+      await candleStatusQuery.refetch();
+    } catch (error) {
+      setImportNotice((error as Error).message);
+    } finally { setImportBusy(false); }
+  };
 
   const runBacktest = async () => {
     setBacktestBusy(true); setEngineNotice(""); setBacktestResult(null);
@@ -139,6 +197,16 @@ export default function WorkbenchView({ view }: { view: View }) {
   if (view === "backtest") return (
     <section className="workbench-page">
       <div className="workbench-intro"><div className="eyebrow">STRATEGY LAB / BACKTEST</div><h2>Backtest engine</h2><p>Configure a reproducible historical test and evaluate it against a selected prop-firm rule set.</p></div>
+      <div className="settings-section">
+        <div className="section-heading"><div><h3><AppIcon name="database" size={16}/> Historical data</h3><p>Import real OHLCV candles from your broker or data vendor. No synthetic prices are generated.</p></div><span className="state-badge state-off">{(candleStatusQuery.data?.count ?? 0).toLocaleString()} STORED</span></div>
+        <div className="rss-add-form">
+          <label>CSV file (time, open, high, low, close, optional volume)<input type="file" accept=".csv,text/csv" onChange={importHistoricalCsv} disabled={importBusy}/></label>
+          <div className="integration-loading">{candleStatusQuery.data?.count ? "Dataset range: " + new Date((candleStatusQuery.data.firstTime ?? 0) * 1000).toLocaleString() + " → " + new Date((candleStatusQuery.data.lastTime ?? 0) * 1000).toLocaleString() : "No stored candles for this instrument and timeframe yet."}</div>
+        </div>
+        {importBusy && <div className="notice-line"><span>IMPORTING</span>Validating and storing historical candles…</div>}
+        {importNotice && <div className="notice-line"><span>DATASET</span>{importNotice}</div>}
+        {candleStatusQuery.error && <div className="notice-line"><span>DATA API</span>{(candleStatusQuery.error as Error).message}</div>}
+      </div>
       <div className="backtest-config">
         <label>Strategy<select value="ema-pullback-v1" disabled><option value="ema-pullback-v1">EMA Pullback v1 (backend engine)</option></select></label>
         <label>Market<select value={market} onChange={e=>{setMarket(e.target.value);setBacktestResult(null);}}><option>XAUUSD</option><option>EURUSD</option><option>NAS100</option><option>US500</option><option>BTCUSD</option></select></label>
@@ -151,7 +219,7 @@ export default function WorkbenchView({ view }: { view: View }) {
         <button className="workbench-button primary wide-field" disabled={backtestBusy} onClick={runBacktest}>{backtestBusy?"Running backtest…":"Run backtest on imported candles"}</button>
       </div>
       {engineNotice && <div className="notice-line"><span>BACKTEST NOT RUN</span>{engineNotice}</div>}
-      {backtestResult && <div className="settings-section"><div className="section-heading"><div><h3>Backtest results</h3><p>{backtestResult.data?.candles ?? "—"} imported candles · {backtestResult.symbol} · {backtestResult.timeframe} · EMA Pullback v1</p></div><span className="state-badge state-warn">HISTORICAL SIMULATION</span></div><div className="prop-metrics"><article><span>NET P&amp;L</span><strong>{Number(backtestResult.result?.netPnl ?? 0).toLocaleString("en-US",{style:"currency",currency:"USD"})}</strong></article><article><span>RETURN</span><strong>{Number(backtestResult.result?.returnPct ?? 0).toFixed(2)}%</strong></article><article><span>WIN RATE</span><strong>{Number(backtestResult.result?.winRate ?? 0).toFixed(1)}%</strong></article><article><span>PROFIT FACTOR</span><strong>{Number(backtestResult.result?.profitFactor ?? 0).toFixed(2)}</strong></article></div><div className="prop-risk"><div><span>TRADES</span><strong>{backtestResult.result?.totalTrades ?? 0}</strong></div><div><span>MAX DRAWDOWN</span><strong>{Number(backtestResult.result?.maxDrawdown ?? 0).toLocaleString("en-US",{style:"currency",currency:"USD"})}</strong></div><div><span>EXPECTANCY</span><strong>{Number(backtestResult.result?.expectancyR ?? 0).toFixed(3)}R</strong></div></div><p className="rss-security-note">Research simulation only. Current run uses zero spread, zero slippage and zero commission; it is not a prop-firm compliance result.</p></div>}
+      {backtestResult && <div className="settings-section"><div className="section-heading"><div><h3>Backtest results</h3><p>{backtestResult.data?.candles ?? "—"} imported candles · {backtestResult.symbol} · {backtestResult.timeframe} · EMA Pullback v1</p></div><span className="state-badge state-warn">HISTORICAL SIMULATION</span></div><div className="prop-metrics"><article><span>NET P&amp;L</span><strong>{Number(backtestResult.result?.netPnl ?? 0).toLocaleString("en-US",{style:"currency",currency:"USD"})}</strong></article><article><span>RETURN</span><strong>{Number(backtestResult.result?.returnPct ?? 0).toFixed(2)}%</strong></article><article><span>WIN RATE</span><strong>{Number(backtestResult.result?.winRate ?? 0).toFixed(1)}%</strong></article><article><span>PROFIT FACTOR</span><strong>{Number(backtestResult.result?.profitFactor ?? 0).toFixed(2)}</strong></article></div><div className="prop-risk"><div><span>TRADES</span><strong>{backtestResult.result?.totalTrades ?? 0}</strong></div><div><span>MAX DRAWDOWN</span><strong>{Number(backtestResult.result?.maxDrawdown ?? 0).toLocaleString("en-US",{style:"currency",currency:"USD"})}</strong></div><div><span>EXPECTANCY</span><strong>{Number(backtestResult.result?.expectancyR ?? 0).toFixed(3)}R</strong></div></div><p className="rss-security-note">Research simulation only. This UI currently sets spread, slippage and commission to zero. Configure realistic instrument-specific costs before trusting any result; this is not a prop-firm compliance result.</p></div>}
       {!backtestResult && !engineNotice && <div className="engine-empty"><div className="engine-icon">∿</div><h3>Ready for historical data</h3><p>The backend EMA pullback engine is connected. It requires at least 250 imported candles for the exact symbol and timeframe. If none are stored, the API will report the available candle count instead of fabricating a result.</p><div className="engine-dependencies"><span>EMA 50 / 200</span><span>DETERMINISTIC FILLS</span><span>RISK SIZING</span></div></div>}
       <div className="settings-section"><div className="section-heading"><div><h3>Prop-firm rule profiles</h3><p>Selected profile: {firm}. Rules must be fetched from and timestamped against official provider sources before use.</p></div><span className="state-badge state-warn">NOT VERIFIED</span></div><div className="rule-grid">{[{n:"Daily loss limit",d:"Needs official value and calculation basis"},{n:"Maximum overall loss",d:"Static or trailing drawdown must be identified"},{n:"Profit target",d:"Challenge phase and account size dependent"},{n:"Minimum trading days",d:"Provider and evaluation type dependent"}].map(x=><article className="rule-card" key={x.n}><span>{x.n}</span><strong>—</strong><p>{x.d}</p></article>)}</div></div>
     </section>
