@@ -21,7 +21,7 @@ export function runEmaPullbackBacktest(bars:Candle[],c:BacktestConfig,options:{s
  for(const [k,v] of Object.entries(c))if(!finite(v))throw new Error("Invalid "+k);
  if(c.initialBalance<=0||c.riskPct<=0||c.riskPct>1||c.rewardRisk<.5||c.fastEma<2||c.slowEma<=c.fastEma||c.maxTradesPerDay<1||c.maxTradesPerDay>20||c.spread<0||c.slippage<0||c.commissionPerUnit<0)throw new Error("Configuration outside safe bounds; riskPct is a percentage capped at 1%.");
  const start=Math.max(1,Math.floor(options.startIndex??1)),end=Math.min(bars.length-1,Math.floor(options.endIndex??bars.length-1));
- if(start>=end||start<c.slowEma+1)throw new Error("Evaluation window must contain candles after the slow EMA warm-up period.");
+ if(start>=end)throw new Error("Evaluation window must contain at least two candles.");
  const fast=ema(bars.map(b=>b.close),c.fastEma),slow=ema(bars.map(b=>b.close),c.slowEma);
  let balance=c.initialBalance,peak=balance,maxDd=0,maxDdPct=0,position:Trade|null=null,day="",tradesToday=0;
  const trades:Trade[]=[],equity=[{time:bars[start-1].time,equity:balance}];
