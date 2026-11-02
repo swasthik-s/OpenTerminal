@@ -14,8 +14,7 @@ type PolyMarket = { question?: string; slug?: string; volume24hr?: number | stri
 
 
 function parseHistoricalCsv(source: string) {
-  const lines = source.replace(/^\\uFEFF/, "").split(/\\r?\
-/).map(line => line.trim()).filter(Boolean);
+  const lines = source.replace(/^\uFEFF/, "").split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   if (lines.length < 2) throw new Error("CSV must contain a header and at least one data row.");
   const split = (line: string) => line.split(",").map(value => value.trim().replace(/^["']|["']$/g, ""));
   const first = split(lines[0]).map(value => value.toLowerCase().replace(/[ _-]/g, ""));
