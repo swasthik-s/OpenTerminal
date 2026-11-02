@@ -50,5 +50,15 @@ export function runWalkForwardEvaluation(bars:Candle[],config:BacktestConfig,tra
  if(split<config.slowEma+3||bars.length-split<50)throw new Error("Dataset is too small for the requested train/test split.");
  const train=runEmaPullbackBacktest(bars,config,{startIndex:1,endIndex:split-1});
  const test=runEmaPullbackBacktest(bars,{...config,initialBalance:config.initialBalance},{startIndex:split,endIndex:bars.length-1});
- return {method:"chronological-holdout",trainPct,testPct:100-trainPct,splitTime:bars[split].time,training:train,outOfSample:test,warning:"A single holdout is not proof of robustness. Include walk-forward windows, realistic broker costs, and unseen market regimes before considering deployment."};
+ const foldCount=3,foldSize=Math.floor((bars.length-split)/foldCount);
+ const windows=Array.from({length:foldCount},(_,index)=>{
+  const start=split+index*foldSize;
+  const end=index===foldCount-1?bars.length-1:Math.min(bars.length-1,start+foldSize-1);
+  return {index:index+1,from:bars[start].time,to:bars[end].time,result:runEmaPullbackBacktest(bars,{...config,initialBalance:config.initialBalance},{startIndex:start,endIndex:end})};
+ });
+ const windowTrades=windows.flatMap(w=>w.result.trades);
+ const windowWins=windowTrades.filter(t=>t.pnl>0),windowLosses=windowTrades.filter(t=>t.pnl<0);
+ const windowGrossWin=windowWins.reduce((sum,t)=>sum+t.pnl,0),windowGrossLoss=Math.abs(windowLosses.reduce((sum,t)=>sum+t.pnl,0));
+ const walkForward={folds:windows.length,totalTrades:windowTrades.length,netPnl:windowTrades.reduce((sum,t)=>sum+t.pnl,0),winRate:windowTrades.length?windowWins.length/windowTrades.length*100:0,profitFactor:windowGrossLoss?windowGrossWin/windowGrossLoss:windowGrossWin?null:0,expectancyR:windowTrades.length?windowTrades.reduce((sum,t)=>sum+t.rMultiple,0)/windowTrades.length:0,worstFoldReturnPct:Math.min(...windows.map(w=>w.result.returnPct)),bestFoldReturnPct:Math.max(...windows.map(w=>w.result.returnPct)),windows};
+ return {method:"chronological-holdout-with-rolling-folds",trainPct,testPct:100-trainPct,splitTime:bars[split].time,training:train,outOfSample:test,walkForward,warning:"Rolling folds reuse the same fixed strategy parameters; they are robustness checks, not parameter optimization. A single dataset still cannot prove future profitability. Validate on independent data and realistic broker costs."};
 }
