@@ -147,6 +147,44 @@ backtestRouter.get("/runs", (_req, res) => {
   res.json(db.prepare("SELECT id,symbol,timeframe,strategy,created_at FROM backtest_runs ORDER BY created_at DESC LIMIT 100").all());
 });
 
+backtestRouter.get("/analytics", (req, res) => {
+  const symbol = req.query.symbol === undefined ? null : symbolSchema.safeParse(req.query.symbol);
+  const timeframe = req.query.timeframe === undefined ? null : timeframeSchema.safeParse(req.query.timeframe);
+  if (symbol && !symbol.success) return res.status(400).json({ error: "Invalid symbol filter." });
+  if (timeframe && !timeframe.success) return res.status(400).json({ error: "Invalid timeframe filter." });
+  const rows = db.prepare(`
+    SELECT id,symbol,timeframe,strategy,config_json,result_json,created_at
+    FROM backtest_runs
+    WHERE (? IS NULL OR symbol=?) AND (? IS NULL OR timeframe=?)
+    ORDER BY created_at DESC LIMIT 100
+  `).all(symbol?.success ? symbol.data : null, symbol?.success ? symbol.data : null, timeframe?.success ? timeframe.data : null, timeframe?.success ? timeframe.data : null) as Array<{id:string;symbol:string;timeframe:string;strategy:string;config_json:string;result_json:string;created_at:string}>;
+  const runs = rows.map(row => {
+    const payload = JSON.parse(row.result_json);
+    const metrics = payload.outOfSample ?? payload.result ?? payload;
+    return {
+      id: row.id, symbol: row.symbol, timeframe: row.timeframe, strategy: row.strategy, createdAt: row.created_at,
+      metrics: {
+        totalTrades: Number(metrics.totalTrades ?? 0), netPnl: Number(metrics.netPnl ?? 0),
+        returnPct: Number(metrics.returnPct ?? 0), winRate: Number(metrics.winRate ?? 0),
+        profitFactor: metrics.profitFactor === null ? null : Number(metrics.profitFactor ?? 0),
+        expectancyR: Number(metrics.expectancyR ?? 0), maxDrawdownPct: Number(metrics.maxDrawdownPct ?? 0),
+      },
+    };
+  });
+  const active = runs.filter(run => run.metrics.totalTrades > 0);
+  res.json({
+    count: runs.length, runs,
+    aggregate: {
+      runsWithTrades: active.length,
+      averageReturnPct: active.length ? active.reduce((sum, run) => sum + run.metrics.returnPct, 0) / active.length : 0,
+      averageExpectancyR: active.length ? active.reduce((sum, run) => sum + run.metrics.expectancyR, 0) / active.length : 0,
+      positiveRuns: active.filter(run => run.metrics.netPnl > 0).length,
+      negativeRuns: active.filter(run => run.metrics.netPnl < 0).length,
+    },
+    note: "Descriptive research history only. Runs may use different datasets, costs, and parameters; aggregate metrics are not a valid pooled performance estimate.",
+  });
+});
+
 backtestRouter.get("/runs/:id", (req, res) => {
   const row = db.prepare("SELECT * FROM backtest_runs WHERE id=?").get(req.params.id) as any;
   if (!row) return res.status(404).json({ error: "Backtest run not found." });
