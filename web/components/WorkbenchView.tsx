@@ -14,7 +14,8 @@ type PolyMarket = { question?: string; slug?: string; volume24hr?: number | stri
 
 
 function parseHistoricalCsv(source: string) {
-  const lines = source.replace(/^\\uFEFF/, "").split(/\\r?\\n/).map(line => line.trim()).filter(Boolean);
+  const lines = source.replace(/^\\uFEFF/, "").split(/\\r?\
+/).map(line => line.trim()).filter(Boolean);
   if (lines.length < 2) throw new Error("CSV must contain a header and at least one data row.");
   const split = (line: string) => line.split(",").map(value => value.trim().replace(/^["']|["']$/g, ""));
   const first = split(lines[0]).map(value => value.toLowerCase().replace(/[ _-]/g, ""));
@@ -53,7 +54,8 @@ function parseHistoricalCsv(source: string) {
   candles.sort((a, b) => a.time - b.time);
   return candles;
 }
-\nexport default function WorkbenchView({ view }: { view: View }) {
+
+export default function WorkbenchView({ view }: { view: View }) {
   const [strategyName, setStrategyName] = useState("EMA Pullback");
   const [market, setMarket] = useState("XAUUSD");
   const [timeframe, setTimeframe] = useState("M15");
@@ -62,6 +64,9 @@ function parseHistoricalCsv(source: string) {
   const [stop, setStop] = useState("Swing high / low");
   const [risk, setRisk] = useState("0.5");
   const [rr, setRr] = useState("2");
+  const [spread, setSpread] = useState("0");
+  const [slippage, setSlippage] = useState("0");
+  const [commissionPerUnit, setCommissionPerUnit] = useState("0");
   const [firm, setFirm] = useState("The5ers");
   const [initialCapital, setInitialCapital] = useState("10000");
   const [dateFrom, setDateFrom] = useState("2025-01-01");
@@ -69,7 +74,9 @@ function parseHistoricalCsv(source: string) {
   const [engineNotice, setEngineNotice] = useState("");
   const [backtestBusy, setBacktestBusy] = useState(false);
   const [backtestResult, setBacktestResult] = useState<any>(null);
-  const [backtestEvaluation, setBacktestEvaluation] = useState<any>(null);\n  const [importBusy, setImportBusy] = useState(false);\n  const [importNotice, setImportNotice] = useState("");
+  const [backtestEvaluation, setBacktestEvaluation] = useState<any>(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importNotice, setImportNotice] = useState("");
   const [saved, setSaved] = useState(false);
   const [polySearch, setPolySearch] = useState("");
   const [rssUrl, setRssUrl] = useState("");
@@ -94,7 +101,8 @@ function parseHistoricalCsv(source: string) {
   const rssQuery = useQuery({ queryKey: ["rss-feeds"], queryFn: () => apiGet<RssFeed[]>("/api/integrations/rss-feeds"), enabled: view === "settings" });
   const addRssFeed = async (event: FormEvent) => { event.preventDefault(); if (!rssUrl.trim()) return; setRssBusy(true); setRssNotice(""); try { await apiPost("/api/integrations/rss-feeds", { url: rssUrl.trim(), label: rssLabel.trim() || undefined }); setRssUrl(""); setRssLabel(""); setRssNotice("Feed validated and saved. It will appear in news results."); await Promise.all([rssQuery.refetch(), integrationsQuery.refetch()]); } catch (error) { setRssNotice((error as Error).message); } finally { setRssBusy(false); } };
   const removeRssFeed = async (id:number) => { try { await apiDelete("/api/integrations/rss-feeds/" + id); await Promise.all([rssQuery.refetch(), integrationsQuery.refetch()]); setRssNotice("RSS feed removed."); } catch (error) { setRssNotice((error as Error).message); } };
-  const candleStatusQuery = useQuery({ queryKey: ["backtest-candle-status", market, timeframe], queryFn: () => apiGet<{symbol:string;timeframe:string;count:number;firstTime:number|null;lastTime:number|null}>("/api/backtests/candles/" + encodeURIComponent(market) + "?timeframe=" + timeframe), enabled: view === "backtest" });\n  const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: () => apiGet<{fetchedAt:string; count:number; markets:PolyMarket[]}>("/api/polymarket/markets"), enabled: view === "polymarket", refetchInterval: refreshSeconds * 1000, staleTime: 10_000 });
+  const candleStatusQuery = useQuery({ queryKey: ["backtest-candle-status", market, timeframe], queryFn: () => apiGet<{symbol:string;timeframe:string;count:number;firstTime:number|null;lastTime:number|null}>("/api/backtests/candles/" + encodeURIComponent(market) + "?timeframe=" + timeframe), enabled: view === "backtest" });
+  const polymarketQuery = useQuery({ queryKey: ["polymarket-public-markets"], queryFn: () => apiGet<{fetchedAt:string; count:number; markets:PolyMarket[]}>("/api/polymarket/markets"), enabled: view === "polymarket", refetchInterval: refreshSeconds * 1000, staleTime: 10_000 });
   const runAiTest = async () => { setAiTest({loading:true,message:"Testing AI provider credentials…"}); try { const result = await apiPost<{ok:boolean;model?:string;response?:string}>("/api/integrations/ai/test",{}); setAiTest({loading:false,ok:result.ok,message:result.ok ? "AI handshake succeeded · " + (result.model ?? "model") + " replied: " + (result.response ?? "OK") : "AI connection failed"}); } catch (error) { setAiTest({loading:false,ok:false,message:(error as Error).message}); } };
   const runAlpacaTest = async () => { setAlpacaTest({loading:true,message:"Checking server-side Alpaca credentials…"}); try { const result = await apiPost<{ok:boolean;paper:boolean;account?:{id?:string;status?:string;currency?:string;tradingBlocked?:boolean};error?:string}>("/api/integrations/alpaca/test",{}); setAlpacaTest({loading:false,ok:result.ok,message:result.ok ? "Account handshake succeeded · " + (result.paper ? "PAPER" : "LIVE") + " · " + (result.account?.status ?? "status unknown") + " · " + (result.account?.currency ?? "currency unknown") : "Connection failed"}); } catch (error) { setAlpacaTest({loading:false,ok:false,message:(error as Error).message}); } };
 
@@ -118,7 +126,7 @@ function parseHistoricalCsv(source: string) {
   const runBacktest = async () => {
     setBacktestBusy(true); setEngineNotice(""); setBacktestResult(null); setBacktestEvaluation(null);
     try {
-      const response = await apiPost<any>("/api/backtests/run", { symbol: market.toUpperCase(), timeframe, config: { initialBalance: Number(initialCapital), riskPct: Number(risk), rewardRisk: Number(rr), fastEma: 50, slowEma: 200, maxTradesPerDay: 2, spread: 0, slippage: 0, commissionPerUnit: 0 } });
+      const response = await apiPost<any>("/api/backtests/run", { symbol: market.toUpperCase(), timeframe, config: { initialBalance: Number(initialCapital), riskPct: Number(risk), rewardRisk: Number(rr), fastEma: 50, slowEma: 200, maxTradesPerDay: 2, spread: Number(spread), slippage: Number(slippage), commissionPerUnit: Number(commissionPerUnit) } });
       setBacktestResult(response);
     } catch (error) { setEngineNotice((error as Error).message + " Historical candles must first be imported for the exact symbol and timeframe. No synthetic data will be used."); }
     finally { setBacktestBusy(false); }
@@ -140,7 +148,8 @@ function parseHistoricalCsv(source: string) {
     `Entry: ${entry}`,
     `Stop loss: ${stop}`,
     `Risk per trade: ${risk}% · Target: ${rr}R`,
-  ].join("\n"), [strategyName, market, timeframe, trend, entry, stop, risk, rr]);
+  ].join("
+"), [strategyName, market, timeframe, trend, entry, stop, risk, rr]);
 
   if (view === "settings") {
     const integrations = integrationsQuery.data?.integrations ?? [];
@@ -224,13 +233,17 @@ function parseHistoricalCsv(source: string) {
         <label>Initial balance (USD)<input value={initialCapital} onChange={e=>setInitialCapital(e.target.value)} type="number" min="1" /></label>
         <label>Risk per trade (%)<input value={risk} onChange={e=>setRisk(e.target.value)} type="number" min="0.01" max="1" step="0.05" /></label>
         <label>Reward / risk<input value={rr} onChange={e=>setRr(e.target.value)} type="number" min="0.5" max="10" step="0.5" /></label>
+        <label>Spread (price units)<input value={spread} onChange={e=>setSpread(e.target.value)} type="number" min="0" max="1000" step="0.01" /></label>
+        <label>Slippage (price units)<input value={slippage} onChange={e=>setSlippage(e.target.value)} type="number" min="0" max="1000" step="0.01" /></label>
+        <label>Commission per unit / side<input value={commissionPerUnit} onChange={e=>setCommissionPerUnit(e.target.value)} type="number" min="0" max="1000" step="0.01" /></label>
         <label className="wide-field">Prop firm rule profile<select value={firm} onChange={e=>setFirm(e.target.value)}>{["The5ers","FTMO","FundingPips","Topstep","Custom rules"].map(x=><option key={x}>{x}</option>)}</select></label>
-        <div className="wide-field engine-dependencies"><span>ENGINE: EMA 50 / 200</span><span>MAX 2 TRADES / DAY</span><span>ZERO COST ASSUMPTION</span></div>
-        <button className="workbench-button primary wide-field" disabled={backtestBusy} onClick={runBacktest}>{backtestBusy?"Running backtest…":"Run backtest on imported candles"}</button>\n        <button className="workbench-button wide-field" disabled={backtestBusy} onClick={runHoldoutEvaluation}>{backtestBusy?"Evaluating…":"Run 70 / 30 out-of-sample evaluation"}</button>
+        <div className="wide-field engine-dependencies"><span>ENGINE: EMA 50 / 200</span><span>MAX 2 TRADES / DAY</span><span>COST MODEL: USER INPUT</span></div>
+        <button className="workbench-button primary wide-field" disabled={backtestBusy} onClick={runBacktest}>{backtestBusy?"Running backtest…":"Run backtest on imported candles"}</button>
+        <button className="workbench-button wide-field" disabled={backtestBusy} onClick={runHoldoutEvaluation}>{backtestBusy?"Evaluating…":"Run 70 / 30 out-of-sample evaluation"}</button>
       </div>
       {engineNotice && <div className="notice-line"><span>BACKTEST NOT RUN</span>{engineNotice}</div>}
       {backtestResult && <div className="settings-section"><div className="section-heading"><div><h3>Backtest results</h3><p>{backtestResult.data?.candles ?? "—"} imported candles · {backtestResult.symbol} · {backtestResult.timeframe} · EMA Pullback v1</p></div><span className="state-badge state-warn">HISTORICAL SIMULATION</span></div><div className="prop-metrics"><article><span>NET P&amp;L</span><strong>{Number(backtestResult.result?.netPnl ?? 0).toLocaleString("en-US",{style:"currency",currency:"USD"})}</strong></article><article><span>RETURN</span><strong>{Number(backtestResult.result?.returnPct ?? 0).toFixed(2)}%</strong></article><article><span>WIN RATE</span><strong>{Number(backtestResult.result?.winRate ?? 0).toFixed(1)}%</strong></article><article><span>PROFIT FACTOR</span><strong>{backtestResult.result?.profitFactor === null ? "∞" : Number(backtestResult.result?.profitFactor ?? 0).toFixed(2)}</strong></article></div><div className="prop-risk"><div><span>TRADES</span><strong>{backtestResult.result?.totalTrades ?? 0}</strong></div><div><span>MAX DRAWDOWN</span><strong>{Number(backtestResult.result?.maxDrawdown ?? 0).toLocaleString("en-US",{style:"currency",currency:"USD"})}</strong></div><div><span>EXPECTANCY</span><strong>{Number(backtestResult.result?.expectancyR ?? 0).toFixed(3)}R</strong></div></div><div className="prop-orders-table"><h4>Trade ledger · latest 20</h4><table className="data-table"><thead><tr><th>TIME</th><th>SIDE</th><th>ENTRY</th><th>EXIT</th><th>R</th><th>NET P&amp;L</th><th>EXIT</th></tr></thead><tbody>{(backtestResult.result?.trades ?? []).slice(-20).reverse().map((trade:any,index:number)=><tr key={trade.entryTime + "-" + index}><td>{new Date(trade.entryTime * 1000).toLocaleString()}</td><td>{trade.side.toUpperCase()}</td><td>{Number(trade.entry).toFixed(3)}</td><td>{Number(trade.exit).toFixed(3)}</td><td>{Number(trade.rMultiple).toFixed(2)}R</td><td className={trade.pnl >= 0 ? "up" : "down"}>{Number(trade.pnl).toFixed(2)}</td><td>{trade.exitReason.toUpperCase()}</td></tr>)}</tbody></table>{!backtestResult.result?.trades?.length && <p className="integration-loading">No trades were generated by these rules in this dataset.</p>}</div><p className="rss-security-note">Research simulation only. This UI currently sets spread, slippage and commission to zero. Configure realistic instrument-specific costs before trusting any result; this is not a prop-firm compliance result.</p></div>}
-      {backtestEvaluation?.evaluation && <div className="settings-section"><div className="section-heading"><div><h3>Out-of-sample evaluation</h3><p>Chronological 70% training / 30% unseen holdout · {backtestEvaluation.data?.candles?.toLocaleString?.() ?? "—"} candles</p></div><span className="state-badge state-warn">HOLDOUT TEST</span></div><div className="prop-metrics"><article><span>TRAIN RETURN</span><strong>{Number(backtestEvaluation.evaluation.training.returnPct).toFixed(2)}%</strong></article><article><span>TEST RETURN</span><strong>{Number(backtestEvaluation.evaluation.outOfSample.returnPct).toFixed(2)}%</strong></article><article><span>TEST PROFIT FACTOR</span><strong>{backtestEvaluation.evaluation.outOfSample.profitFactor === null ? "∞" : Number(backtestEvaluation.evaluation.outOfSample.profitFactor).toFixed(2)}</strong></article><article><span>TEST WIN RATE</span><strong>{Number(backtestEvaluation.evaluation.outOfSample.winRate).toFixed(1)}%</strong></article></div><div className="prop-risk"><div><span>TEST TRADES</span><strong>{backtestEvaluation.evaluation.outOfSample.totalTrades}</strong></div><div><span>TEST MAX DRAWDOWN</span><strong>{Number(backtestEvaluation.evaluation.outOfSample.maxDrawdownPct).toFixed(2)}%</strong></div><div><span>TEST EXPECTANCY</span><strong>{Number(backtestEvaluation.evaluation.outOfSample.expectancyR).toFixed(3)}R</strong></div></div><p className="rss-security-note">{backtestEvaluation.evaluation.warning} Current UI assumes zero spread, slippage and commission; calibrate costs before interpreting performance.</p></div>}
+      {backtestEvaluation?.evaluation && <div className="settings-section"><div className="section-heading"><div><h3>Out-of-sample evaluation</h3><p>Chronological 70% training / 30% unseen holdout · {backtestEvaluation.data?.candles?.toLocaleString?.() ?? "—"} candles</p></div><span className="state-badge state-warn">HOLDOUT TEST</span></div><div className="prop-metrics"><article><span>TRAIN RETURN</span><strong>{Number(backtestEvaluation.evaluation.training.returnPct).toFixed(2)}%</strong></article><article><span>TEST RETURN</span><strong>{Number(backtestEvaluation.evaluation.outOfSample.returnPct).toFixed(2)}%</strong></article><article><span>TEST PROFIT FACTOR</span><strong>{backtestEvaluation.evaluation.outOfSample.profitFactor === null ? "∞" : Number(backtestEvaluation.evaluation.outOfSample.profitFactor).toFixed(2)}</strong></article><article><span>TEST WIN RATE</span><strong>{Number(backtestEvaluation.evaluation.outOfSample.winRate).toFixed(1)}%</strong></article></div><div className="prop-risk"><div><span>TEST TRADES</span><strong>{backtestEvaluation.evaluation.outOfSample.totalTrades}</strong></div><div><span>TEST MAX DRAWDOWN</span><strong>{Number(backtestEvaluation.evaluation.outOfSample.maxDrawdownPct).toFixed(2)}%</strong></div><div><span>TEST EXPECTANCY</span><strong>{Number(backtestEvaluation.evaluation.outOfSample.expectancyR).toFixed(3)}R</strong></div></div><p className="rss-security-note">{backtestEvaluation.evaluation.warning} Costs use the values entered above. Spread and slippage are price units; commission is charged per unit per side. Calibrate against your broker contract specification.</p></div>}
       {!backtestResult && !engineNotice && <div className="engine-empty"><div className="engine-icon">∿</div><h3>Ready for historical data</h3><p>The backend EMA pullback engine is connected. It requires at least 250 imported candles for the exact symbol and timeframe. If none are stored, the API will report the available candle count instead of fabricating a result.</p><div className="engine-dependencies"><span>EMA 50 / 200</span><span>DETERMINISTIC FILLS</span><span>RISK SIZING</span></div></div>}
       <div className="settings-section"><div className="section-heading"><div><h3>Prop-firm rule profiles</h3><p>Selected profile: {firm}. Rules must be fetched from and timestamped against official provider sources before use.</p></div><span className="state-badge state-warn">NOT VERIFIED</span></div><div className="rule-grid">{[{n:"Daily loss limit",d:"Needs official value and calculation basis"},{n:"Maximum overall loss",d:"Static or trailing drawdown must be identified"},{n:"Profit target",d:"Challenge phase and account size dependent"},{n:"Minimum trading days",d:"Provider and evaluation type dependent"}].map(x=><article className="rule-card" key={x.n}><span>{x.n}</span><strong>—</strong><p>{x.d}</p></article>)}</div></div>
     </section>
