@@ -21,6 +21,28 @@ strategyRouter.post("/draft",async(req,res)=>{
  res.json({strategy:parsed.data,executable:true,liveEligible:false,requiresApproval:true});
  }catch(e){res.status(502).json({error:"Strategy drafting failed.",detail:(e as Error).message});}
 });
+strategyRouter.post("/review", async (req,res) => {
+ const symbol=String(req.body?.symbol??"").trim().toUpperCase();
+ const timeframe=String(req.body?.timeframe??"").trim().toUpperCase();
+ if(!/^[A-Z0-9._-]{2,24}$/.test(symbol)||!["M1","M5","M15","M30","H1","H4","D1"].includes(timeframe))return res.status(400).json({error:"Valid symbol and timeframe are required."});
+ if(!process.env.ANTHROPIC_API_KEY)return res.status(503).json({error:"Configure ANTHROPIC_API_KEY on the server."});
+ const rows=db.prepare("SELECT id,strategy,config_json,result_json,created_at FROM backtest_runs WHERE symbol=? AND timeframe=? ORDER BY created_at DESC LIMIT 10").all(symbol,timeframe) as Array<{id:string;strategy:string;config_json:string;result_json:string;created_at:string}>;
+ if(!rows.length)return res.status(404).json({error:"No saved backtest runs exist for this symbol and timeframe."});
+ const evidence=rows.map(row=>{
+  const payload=JSON.parse(row.result_json);
+  const metrics=payload.outOfSample??payload.result??payload;
+  const wf=payload.walkForward;
+  return {id:row.id,strategy:row.strategy,createdAt:row.created_at,config:JSON.parse(row.config_json),metrics:{totalTrades:metrics.totalTrades??0,netPnl:metrics.netPnl??0,returnPct:metrics.returnPct??0,winRate:metrics.winRate??0,profitFactor:metrics.profitFactor??0,expectancyR:metrics.expectancyR??0,maxDrawdownPct:metrics.maxDrawdownPct??0},walkForward:wf?{folds:wf.folds,netPnl:wf.netPnl,profitFactor:wf.profitFactor,worstFoldReturnPct:wf.worstFoldReturnPct,bestFoldReturnPct:wf.bestFoldReturnPct,windows:wf.windows?.map((w:any)=>({index:w.index,trades:w.result.totalTrades,returnPct:w.result.returnPct,profitFactor:w.result.profitFactor,maxDrawdownPct:w.result.maxDrawdownPct}))}:null};
+ });
+ const totalTrades=evidence.reduce((sum,item)=>sum+Number(item.metrics.totalTrades),0);
+ try{
+  const client=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
+  const response=await client.messages.create({model:process.env.ANTHROPIC_MODEL??"claude-sonnet-4-5",max_tokens:1800,system:"You are OpenTerminal's quantitative research reviewer. Analyze only the supplied saved backtest evidence. Do not invent data, infer missing costs, or claim future profitability. Distinguish in-sample from out-of-sample results. Flag small samples, zero/unknown transaction costs, inconsistent configurations, and regime concentration. Treat a positive result as a hypothesis, not proof of edge. Do not propose live execution or alter strategy settings. Give a concise assessment with: evidence quality, robustness, key risks, and the next research experiment. If evidence is insufficient, say so clearly.",messages:[{role:"user",content:"Review saved backtests for "+symbol+" "+timeframe+". Total trades across returned runs: "+totalTrades+". Evidence JSON:\n"+JSON.stringify(evidence)}]});
+  const review=response.content.filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
+  res.json({symbol,timeframe,runCount:evidence.length,totalTrades,review,evidence,liveEligible:false,decision:"research-only"});
+ }catch(error){res.status(502).json({error:"AI research review failed.",detail:(error as Error).message});}
+});
+
 strategyRouter.post("/experiments", (req,res)=>{
  const parsed=StrategySchema.safeParse(req.body?.strategy);
  if(!parsed.success)return res.status(400).json({error:"Invalid strategy specification",details:parsed.error.flatten()});
