@@ -135,7 +135,7 @@ export default function WorkbenchView({ view }: { view: View }) {
   const runHoldoutEvaluation = async () => {
     setBacktestBusy(true); setEngineNotice(""); setBacktestEvaluation(null);
     try {
-      const response = await apiPost<any>("/api/backtests/evaluate", { symbol: market.toUpperCase(), timeframe, trainPct: 70, config: { initialBalance: Number(initialCapital), riskPct: Number(risk), rewardRisk: Number(rr), fastEma: 50, slowEma: 200, maxTradesPerDay: 2, spread: 0, slippage: 0, commissionPerUnit: 0 } });
+      const response = await apiPost<any>("/api/backtests/evaluate", { symbol: market.toUpperCase(), timeframe, trainPct: 70, config: { initialBalance: Number(initialCapital), riskPct: Number(risk), rewardRisk: Number(rr), fastEma: 50, slowEma: 200, maxTradesPerDay: 2, spread: Number(spread), slippage: Number(slippage), commissionPerUnit: Number(commissionPerUnit) } });
       setBacktestEvaluation(response);
     } catch (error) { setEngineNotice((error as Error).message + " Holdout evaluation needs at least 300 candles for the exact symbol and timeframe."); }
     finally { setBacktestBusy(false); }
@@ -148,8 +148,7 @@ export default function WorkbenchView({ view }: { view: View }) {
     `Entry: ${entry}`,
     `Stop loss: ${stop}`,
     `Risk per trade: ${risk}% · Target: ${rr}R`,
-  ].join("
-"), [strategyName, market, timeframe, trend, entry, stop, risk, rr]);
+  ].join("\n"), [strategyName, market, timeframe, trend, entry, stop, risk, rr]);
 
   if (view === "settings") {
     const integrations = integrationsQuery.data?.integrations ?? [];
