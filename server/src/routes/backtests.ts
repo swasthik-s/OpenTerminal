@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { db } from "../db.js";
-import { runEmaPullbackBacktest, validateCandles } from "../backtest/engine.js";
+import { runEmaPullbackBacktest, runWalkForwardEvaluation, validateCandles } from "../backtest/engine.js";
 
 export const backtestRouter = Router();
 const configSchema = z.object({
@@ -105,6 +105,38 @@ backtestRouter.post("/run", (req, res) => {
         to: (rows[rows.length - 1] as any).time,
       },
       result,
+    });
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+backtestRouter.post("/evaluate", (req, res) => {
+  const symbol = symbolSchema.safeParse(req.body?.symbol);
+  const timeframe = timeframeSchema.safeParse(req.body?.timeframe);
+  const parsed = configSchema.safeParse(req.body?.config);
+  const trainPct = z.number().min(50).max(90).default(70).safeParse(req.body?.trainPct ?? 70);
+  if (!symbol.success || !timeframe.success || !parsed.success || !trainPct.success) {
+    return res.status(400).json({ error: "Valid symbol, timeframe, config, and trainPct (50–90) are required." });
+  }
+  const rows = db.prepare(`
+    SELECT time,open,high,low,close,volume FROM historical_bars
+    WHERE symbol=? AND timeframe=? ORDER BY time ASC LIMIT 100000
+  `).all(symbol.data, timeframe.data);
+  if (rows.length < 300) {
+    return res.status(404).json({ error: "At least 300 stored candles are required for holdout evaluation.", availableCandles: rows.length });
+  }
+  try {
+    const evaluation = runWalkForwardEvaluation(rows as any, parsed.data, trainPct.data);
+    const id = randomUUID();
+    db.prepare(`
+      INSERT INTO backtest_runs(id,symbol,timeframe,strategy,config_json,result_json)
+      VALUES(?,?,?,?,?,?)
+    `).run(id, symbol.data, timeframe.data, "ema-pullback-v1-holdout", JSON.stringify({ ...parsed.data, trainPct: trainPct.data }), JSON.stringify(evaluation));
+    res.json({
+      id, symbol: symbol.data, timeframe: timeframe.data,
+      data: { candles: rows.length, from: (rows[0] as any).time, to: (rows[rows.length - 1] as any).time },
+      evaluation,
     });
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });
