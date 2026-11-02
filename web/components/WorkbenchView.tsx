@@ -68,7 +68,8 @@ function parseHistoricalCsv(source: string) {
   const [dateTo, setDateTo] = useState("2026-10-29");
   const [engineNotice, setEngineNotice] = useState("");
   const [backtestBusy, setBacktestBusy] = useState(false);
-  const [backtestResult, setBacktestResult] = useState<any>(null);\n  const [backtestEvaluation, setBacktestEvaluation] = useState<any>(null);\n  const [importBusy, setImportBusy] = useState(false);\n  const [importNotice, setImportNotice] = useState("");
+  const [backtestResult, setBacktestResult] = useState<any>(null);
+  const [backtestEvaluation, setBacktestEvaluation] = useState<any>(null);\n  const [importBusy, setImportBusy] = useState(false);\n  const [importNotice, setImportNotice] = useState("");
   const [saved, setSaved] = useState(false);
   const [polySearch, setPolySearch] = useState("");
   const [rssUrl, setRssUrl] = useState("");
